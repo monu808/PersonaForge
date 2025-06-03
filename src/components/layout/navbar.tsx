@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Settings, LogOut } from 'lucide-react';
-import { signOut } from '../lib/auth';
+import { signOut } from '@/lib/auth';
 
 export default function Navbar() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
