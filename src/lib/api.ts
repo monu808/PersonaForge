@@ -64,6 +64,11 @@ export async function getUserProfile(userId: string) {
       .eq('id', userId)
       .single();
 
+    // If no user found, return null data without throwing error
+    if (userError && userError.code === 'PGRST116') {
+      return { data: null, error: null };
+    }
+
     if (userError) throw userError;
 
     const { data: settings, error: settingsError } = await supabase
@@ -72,7 +77,15 @@ export async function getUserProfile(userId: string) {
       .eq('user_id', userId)
       .single();
 
-    if (settingsError && settingsError.code !== 'PGRST116') throw settingsError;
+    // Settings might not exist yet, which is fine
+    if (settingsError && settingsError.code === 'PGRST116') {
+      return {
+        data: { ...user, settings: null },
+        error: null,
+      };
+    }
+
+    if (settingsError) throw settingsError;
 
     return {
       data: { ...user, settings },
