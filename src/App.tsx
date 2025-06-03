@@ -56,7 +56,7 @@ function App() {
           </Route>
           
           {/* Catch-all route for any unmatched routes */}
-          <Route path="*" element={<Navigate to="/" replace />} />
+          <Route path="*" element={<Navigate to="/\" replace />} />
         </Routes>
       </Router>
     </AuthProvider>

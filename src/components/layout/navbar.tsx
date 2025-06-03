@@ -190,9 +190,9 @@ export default function Navbar({ publicOnly = false }: NavbarProps) {
               onClick={toggleMobileMenu}
             >
               {isMobileMenuOpen ? (
-                <X className="h-6 w-6" aria-hidden="true" />
+                <X className="h-6 w-6\" aria-hidden="true" />
               ) : (
-                <Menu className="h-6 w-6" aria-hidden="true" />
+                <Menu className="h-6 w-6\" aria-hidden="true" />
               )}
             </button>
           </div>
