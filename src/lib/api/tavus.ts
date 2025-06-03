@@ -52,9 +52,15 @@ export async function getPersonaVideos(personaId: string): Promise<PersonaVideo[
 
 export async function generateTavusVideo(data: TavusVideoRequest): Promise<TavusVideoResponse> {
   try {
-    const { data: functionData, error: invokeError } = await supabase.functions.invoke('create-video', {
-      body: JSON.stringify(data),
-    });
+    const { data: functionData, error: invokeError } = await supabase.functions.invoke(
+      'tavus-api/generate-video',
+      {
+        body: JSON.stringify({
+          personaId: data.personaId,
+          script: data.script,
+        }),
+      }
+    );
 
     if (invokeError) {
       throw new Error('Failed to invoke video generation function');
@@ -62,23 +68,6 @@ export async function generateTavusVideo(data: TavusVideoRequest): Promise<Tavus
 
     if (functionData.error) {
       throw new Error(functionData.error);
-    }
-
-    // Store video metadata in persona_content table
-    const { error: dbError } = await supabase
-      .from('persona_content')
-      .insert({
-        persona_id: data.personaId,
-        content_type: 'video',
-        content: data.script,
-        metadata: {
-          tavus_video_id: functionData.id,
-          status: functionData.status,
-        },
-      });
-
-    if (dbError) {
-      throw new Error(dbError.message);
     }
 
     return functionData;
@@ -90,9 +79,13 @@ export async function generateTavusVideo(data: TavusVideoRequest): Promise<Tavus
 
 export async function checkTavusVideoStatus(videoId: string): Promise<TavusVideoResponse> {
   try {
-    const { data, error } = await supabase.functions.invoke('video-status', {
-      body: JSON.stringify({ videoId }),
-    });
+    const { data, error } = await supabase.functions.invoke(
+      'tavus-api/video-status',
+      {
+        body: null,
+        query: { id: videoId },
+      }
+    );
 
     if (error) {
       throw new Error('Failed to check video status');
