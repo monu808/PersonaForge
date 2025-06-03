@@ -1,5 +1,6 @@
 import { createClient } from '@supabase/supabase-js';
 import { z } from 'zod';
+import jwt from 'jsonwebtoken';
 
 // Initialize Supabase client
 export const supabase = createClient(
@@ -22,19 +23,33 @@ export const emailSchema = z
   .min(5, 'Email is too short')
   .max(254, 'Email is too long');
 
+export const phoneSchema = z
+  .string()
+  .regex(/^\+[1-9]\d{1,14}$/, 'Invalid phone number format. Must include country code.');
+
+export const otpSchema = z
+  .string()
+  .length(6, 'OTP must be 6 digits')
+  .regex(/^\d+$/, 'OTP must contain only numbers');
+
 export const signUpSchema = z.object({
   email: emailSchema,
   password: passwordSchema,
+  phone: phoneSchema.optional(),
 });
 
 // Auth functions
-export async function signUp({ email, password }: { email: string; password: string }) {
+export async function signUp({ email, password, phone }: z.infer<typeof signUpSchema>) {
   try {
     const { data, error } = await supabase.auth.signUp({
       email,
       password,
+      phone,
       options: {
         emailRedirectTo: `${window.location.origin}/auth/callback`,
+        data: {
+          phone_verified: false,
+        },
       },
     });
 
@@ -53,6 +68,17 @@ export async function signIn({ email, password }: { email: string; password: str
     });
 
     if (error) throw error;
+
+    // Generate JWT token
+    const token = jwt.sign(
+      { userId: data.user.id },
+      import.meta.env.VITE_JWT_SECRET,
+      { expiresIn: '24h' }
+    );
+
+    // Store token securely
+    sessionStorage.setItem('auth_token', token);
+
     return { data, error: null };
   } catch (error) {
     return { data: null, error };
@@ -69,6 +95,7 @@ export async function signInWithGoogle() {
           access_type: 'offline',
           prompt: 'consent',
         },
+        scopes: 'email profile',
       },
     });
 
@@ -84,7 +111,8 @@ export async function signOut() {
     const { error } = await supabase.auth.signOut();
     if (error) throw error;
     
-    // Clear any local storage or session data
+    // Clear all auth-related storage
+    sessionStorage.removeItem('auth_token');
     localStorage.removeItem('supabase.auth.token');
     sessionStorage.clear();
     
@@ -92,6 +120,42 @@ export async function signOut() {
   } catch (error) {
     console.error('Sign out error:', error);
     return { error };
+  }
+}
+
+export async function verifyOTP(phone: string, otp: string) {
+  try {
+    const { data, error } = await supabase.auth.verifyOTP({
+      phone,
+      token: otp,
+      type: 'sms',
+    });
+
+    if (error) throw error;
+
+    // Update user metadata to mark phone as verified
+    if (data.user) {
+      await supabase.auth.updateUser({
+        data: { phone_verified: true },
+      });
+    }
+
+    return { data, error: null };
+  } catch (error) {
+    return { data: null, error };
+  }
+}
+
+export async function resendOTP(phone: string) {
+  try {
+    const { data, error } = await supabase.auth.signInWithOtp({
+      phone,
+    });
+
+    if (error) throw error;
+    return { data, error: null };
+  } catch (error) {
+    return { data: null, error };
   }
 }
 
@@ -118,5 +182,26 @@ export async function updatePassword(newPassword: string) {
     return { data, error: null };
   } catch (error) {
     return { data: null, error };
+  }
+}
+
+// Session management
+export async function getSession() {
+  try {
+    const { data: { session }, error } = await supabase.auth.getSession();
+    if (error) throw error;
+    return { session, error: null };
+  } catch (error) {
+    return { session: null, error };
+  }
+}
+
+export async function refreshSession() {
+  try {
+    const { data: { session }, error } = await supabase.auth.refreshSession();
+    if (error) throw error;
+    return { session, error: null };
+  } catch (error) {
+    return { session: null, error };
   }
 }
