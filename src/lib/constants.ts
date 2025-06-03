@@ -1,0 +1,152 @@
+import { HomeIcon, PlusCircleIcon, LayoutDashboardIcon, BrainCircuitIcon, Settings, UserIcon } from 'lucide-react';
+import { NavItem, PersonaTemplate, PersonaTrait } from './types';
+
+export const NAV_ITEMS: NavItem[] = [
+  {
+    title: 'Home',
+    href: '/',
+    icon: HomeIcon,
+  },
+  {
+    title: 'Create',
+    href: '/create',
+    icon: PlusCircleIcon,
+  },
+  {
+    title: 'Dashboard',
+    href: '/dashboard',
+    icon: LayoutDashboardIcon,
+  },
+  {
+    title: 'My Personas',
+    href: '/personas',
+    icon: BrainCircuitIcon,
+  },
+  {
+    title: 'Profile',
+    href: '/profile',
+    icon: UserIcon,
+  },
+  {
+    title: 'Settings',
+    href: '/settings',
+    icon: Settings,
+  },
+];
+
+export const PERSONALITY_TRAITS: PersonaTrait[] = [
+  { id: '1', name: 'Friendly', description: 'Warm and approachable', category: 'personality' },
+  { id: '2', name: 'Professional', description: 'Formal and business-like', category: 'personality' },
+  { id: '3', name: 'Empathetic', description: 'Understanding and compassionate', category: 'personality' },
+  { id: '4', name: 'Analytical', description: 'Logical and detail-oriented', category: 'personality' },
+  { id: '5', name: 'Creative', description: 'Imaginative and innovative', category: 'personality' },
+  { id: '6', name: 'Assertive', description: 'Confident and decisive', category: 'personality' },
+];
+
+export const VOICE_TRAITS: PersonaTrait[] = [
+  { id: '7', name: 'Calm', description: 'Soothing and measured tone', category: 'voice' },
+  { id: '8', name: 'Energetic', description: 'Vibrant and dynamic tone', category: 'voice' },
+  { id: '9', name: 'Authoritative', description: 'Commanding and confident tone', category: 'voice' },
+  { id: '10', name: 'Gentle', description: 'Soft and reassuring tone', category: 'voice' },
+];
+
+export const BEHAVIOR_TRAITS: PersonaTrait[] = [
+  { id: '11', name: 'Proactive', description: 'Takes initiative without prompting', category: 'behavior' },
+  { id: '12', name: 'Responsive', description: 'Reacts quickly to input', category: 'behavior' },
+  { id: '13', name: 'Detailed', description: 'Provides comprehensive information', category: 'behavior' },
+  { id: '14', name: 'Concise', description: 'Communicates briefly and efficiently', category: 'behavior' },
+];
+
+export const KNOWLEDGE_TRAITS: PersonaTrait[] = [
+  { id: '15', name: 'Technical', description: 'Specialized in technical subjects', category: 'knowledge' },
+  { id: '16', name: 'Medical', description: 'Well-versed in medical information', category: 'knowledge' },
+  { id: '17', name: 'Financial', description: 'Knowledgeable about finance and economics', category: 'knowledge' },
+  { id: '18', name: 'Educational', description: 'Focuses on teaching and learning', category: 'knowledge' },
+];
+
+export const PERSONA_TEMPLATES: PersonaTemplate[] = [
+  {
+    id: '1',
+    name: 'Professional Assistant',
+    description: 'A reliable assistant for business and productivity tasks',
+    imageUrl: 'https://images.pexels.com/photos/3861958/pexels-photo-3861958.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=1',
+    traits: [
+      PERSONALITY_TRAITS[1], // Professional
+      VOICE_TRAITS[2], // Authoritative
+      BEHAVIOR_TRAITS[1], // Responsive
+      KNOWLEDGE_TRAITS[0], // Technical
+    ],
+    category: 'professional',
+    popularity: 92,
+  },
+  {
+    id: '2',
+    name: 'Empathetic Companion',
+    description: 'A caring and understanding companion for emotional support',
+    imageUrl: 'https://images.pexels.com/photos/7176305/pexels-photo-7176305.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=1',
+    traits: [
+      PERSONALITY_TRAITS[2], // Empathetic
+      VOICE_TRAITS[3], // Gentle
+      BEHAVIOR_TRAITS[0], // Proactive
+      KNOWLEDGE_TRAITS[3], // Educational
+    ],
+    category: 'companion',
+    popularity: 88,
+  },
+  {
+    id: '3',
+    name: 'Creative Collaborator',
+    description: 'An innovative partner for creative projects and brainstorming',
+    imageUrl: 'https://images.pexels.com/photos/8386440/pexels-photo-8386440.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=1',
+    traits: [
+      PERSONALITY_TRAITS[4], // Creative
+      VOICE_TRAITS[1], // Energetic
+      BEHAVIOR_TRAITS[2], // Detailed
+      KNOWLEDGE_TRAITS[3], // Educational
+    ],
+    category: 'assistant',
+    popularity: 85,
+  },
+  {
+    id: '4',
+    name: 'Medical Advisor',
+    description: 'A knowledgeable guide for health and wellness information',
+    imageUrl: 'https://images.pexels.com/photos/7089401/pexels-photo-7089401.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=1',
+    traits: [
+      PERSONALITY_TRAITS[3], // Analytical
+      VOICE_TRAITS[0], // Calm
+      BEHAVIOR_TRAITS[2], // Detailed
+      KNOWLEDGE_TRAITS[1], // Medical
+    ],
+    category: 'specialized',
+    popularity: 79,
+  },
+  {
+    id: '5',
+    name: 'Financial Consultant',
+    description: 'An expert in financial planning and investment strategies',
+    imageUrl: 'https://images.pexels.com/photos/7235679/pexels-photo-7235679.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=1',
+    traits: [
+      PERSONALITY_TRAITS[3], // Analytical
+      VOICE_TRAITS[2], // Authoritative
+      BEHAVIOR_TRAITS[2], // Detailed
+      KNOWLEDGE_TRAITS[2], // Financial
+    ],
+    category: 'specialized',
+    popularity: 76,
+  },
+  {
+    id: '6',
+    name: 'Friendly Guide',
+    description: 'A warm and approachable companion for everyday assistance',
+    imageUrl: 'https://images.pexels.com/photos/8435919/pexels-photo-8435919.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=1',
+    traits: [
+      PERSONALITY_TRAITS[0], // Friendly
+      VOICE_TRAITS[1], // Energetic
+      BEHAVIOR_TRAITS[1], // Responsive
+      KNOWLEDGE_TRAITS[3], // Educational
+    ],
+    category: 'companion',
+    popularity: 90,
+  },
+];
