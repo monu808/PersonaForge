@@ -3,27 +3,6 @@ import { User } from './types';
 
 export async function uploadAvatar(file: File) {
   try {
-    // First check if bucket exists, if not create it
-    const { data: buckets, error: bucketError } = await supabase
-      .storage
-      .listBuckets();
-
-    if (bucketError) throw bucketError;
-
-    const avatarBucket = buckets?.find(b => b.name === 'avatars');
-    
-    if (!avatarBucket) {
-      const { error: createError } = await supabase
-        .storage
-        .createBucket('avatars', {
-          public: true,
-          fileSizeLimit: 5242880, // 5MB
-          allowedMimeTypes: ['image/jpeg', 'image/png']
-        });
-
-      if (createError) throw createError;
-    }
-
     const fileExt = file.name.split('.').pop();
     const fileName = `${Math.random()}.${fileExt}`;
     const filePath = `${fileName}`;
