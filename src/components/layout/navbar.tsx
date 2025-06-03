@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { 
   BrainCircuitIcon, 
   Menu, 
@@ -10,16 +10,28 @@ import {
   Settings,
   Bell
 } from "lucide-react";
-import { Button } from "../ui/button";
-import { Avatar, AvatarFallback, AvatarImage } from "../ui/avatar";
+import { Button } from "@/components/ui/button";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { NAV_ITEMS } from "@/lib/constants";
+import { signOut } from "@/lib/auth";
 
 export function Navbar() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
+  const navigate = useNavigate();
 
   const toggleMobileMenu = () => setIsMobileMenuOpen(!isMobileMenuOpen);
   const toggleUserMenu = () => setIsUserMenuOpen(!isUserMenuOpen);
+
+  const handleSignOut = async () => {
+    try {
+      const { error } = await signOut();
+      if (error) throw error;
+      navigate('/auth/login');
+    } catch (error) {
+      console.error('Error signing out:', error);
+    }
+  };
 
   const userName = "Alex Morgan";
   const userInitials = "AM";
@@ -92,6 +104,7 @@ export function Navbar() {
                   </Link>
                   <div className="border-t border-gray-200 my-1"></div>
                   <button
+                    onClick={handleSignOut}
                     className="flex w-full items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
                   >
                     <LogOut className="mr-2 h-4 w-4" />
@@ -135,7 +148,10 @@ export function Navbar() {
               </Link>
             ))}
             <div className="border-t border-gray-200 my-2"></div>
-            <button className="w-full flex items-center px-3 py-2 rounded-md text-base font-medium text-gray-700 hover:text-primary-600 hover:bg-gray-50">
+            <button
+              onClick={handleSignOut}
+              className="w-full flex items-center px-3 py-2 rounded-md text-base font-medium text-gray-700 hover:text-primary-600 hover:bg-gray-50"
+            >
               <LogOut className="mr-3 h-5 w-5" />
               Sign out
             </button>
