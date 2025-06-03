@@ -1,18 +1,50 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { BrainCircuitIcon, Menu, X, ChevronDown, LogOut, User, Settings, Bell } from 'lucide-react';
 import { signOut } from '@/lib/auth';
+import { getUserProfile } from '@/lib/api';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { NAV_ITEMS } from '@/lib/constants';
+import { supabase } from '@/lib/auth';
 
 export default function Navbar() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
+  const [userProfile, setUserProfile] = useState(null);
   const navigate = useNavigate();
   
   const toggleMobileMenu = () => setIsMobileMenuOpen(!isMobileMenuOpen);
   const toggleUserMenu = () => setIsUserMenuOpen(!isUserMenuOpen);
+
+  useEffect(() => {
+    loadUserProfile();
+
+    // Subscribe to auth state changes
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+      if (event === 'SIGNED_IN' || event === 'USER_UPDATED') {
+        await loadUserProfile();
+      } else if (event === 'SIGNED_OUT') {
+        setUserProfile(null);
+      }
+    });
+
+    return () => {
+      subscription.unsubscribe();
+    };
+  }, []);
+
+  const loadUserProfile = async () => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        const { data: profile } = await getUserProfile(user.id);
+        setUserProfile(profile);
+      }
+    } catch (error) {
+      console.error('Error loading user profile:', error);
+    }
+  };
 
   const handleSignOut = async () => {
     try {
@@ -30,9 +62,6 @@ export default function Navbar() {
     }
   };
 
-  const userName = "John Doe";
-  const userInitials = "JD";
-
   return (
     <header className="sticky top-0 z-50 bg-white/80 backdrop-blur-md border-b border-gray-200">
       <div className="container mx-auto px-4 sm:px-6 lg:px-8">
@@ -46,12 +75,12 @@ export default function Navbar() {
           </div>
 
           {/* Desktop navigation */}
-          <nav className="hidden md:flex space-x-6">
+          <nav className="hidden md:flex items-center space-x-6">
             {NAV_ITEMS.slice(0, 4).map((item) => (
               <Link
                 key={item.href}
                 to={item.href}
-                className="text-gray-600 hover:text-primary-600 px-2 py-1 text-sm font-medium transition-colors"
+                className="text-gray-600 hover:text-primary-600 px-3 py-2 text-sm font-medium transition-colors rounded-md"
               >
                 {item.title}
               </Link>
@@ -61,7 +90,7 @@ export default function Navbar() {
           {/* User actions */}
           <div className="flex items-center space-x-4">
             {/* Notifications */}
-            <button className="hidden md:flex text-gray-600 hover:text-primary-600 p-1.5 rounded-full">
+            <button className="hidden md:flex text-gray-600 hover:text-primary-600 p-2 rounded-full transition-colors">
               <Bell className="h-5 w-5" />
             </button>
 
@@ -70,12 +99,17 @@ export default function Navbar() {
               <div>
                 <button
                   type="button"
-                  className="flex items-center space-x-2 text-sm rounded-full focus:outline-none"
+                  className="flex items-center space-x-2 text-sm rounded-full focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2"
                   onClick={toggleUserMenu}
                 >
                   <Avatar>
-                    <AvatarImage src="https://images.pexels.com/photos/8090137/pexels-photo-8090137.jpeg?auto=compress&cs=tinysrgb&w=400" alt={userName} />
-                    <AvatarFallback className="bg-primary-100 text-primary-700">{userInitials}</AvatarFallback>
+                    <AvatarImage 
+                      src={userProfile?.avatar_url} 
+                      alt={userProfile?.full_name || 'User'} 
+                    />
+                    <AvatarFallback className="bg-primary-100 text-primary-700">
+                      {userProfile?.full_name?.split(' ').map(n => n[0]).join('') || '?'}
+                    </AvatarFallback>
                   </Avatar>
                   <span className="text-gray-700 font-medium hidden lg:block">{userName}</span>
                   <ChevronDown className="h-4 w-4 text-gray-500" />
@@ -83,7 +117,7 @@ export default function Navbar() {
               </div>
 
               {/* User dropdown menu */}
-              {isUserMenuOpen && (
+              <div className={`absolute right-0 mt-2 w-48 py-2 bg-white rounded-md shadow-lg ring-1 ring-black ring-opacity-5 transition-opacity duration-150 ${isUserMenuOpen ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}>
                 <div className="absolute right-0 mt-2 w-48 py-2 bg-white rounded-md shadow-lg ring-1 ring-black ring-opacity-5">
                   <Link
                     to="/profile"
@@ -129,8 +163,8 @@ export default function Navbar() {
         </div>
       </div>
 
-      {/* Mobile menu panel */}
-      {isMobileMenuOpen && (
+      {/* Mobile menu panel with smooth transition */}
+      <div className={`md:hidden transform transition-transform duration-200 ease-in-out ${isMobileMenuOpen ? 'translate-y-0' : '-translate-y-full'}`}>
         <div className="md:hidden border-t border-gray-200 bg-white">
           <div className="px-2 pt-2 pb-3 space-y-1 sm:px-3">
             {NAV_ITEMS.map((item) => (
@@ -156,7 +190,7 @@ export default function Navbar() {
             </button>
           </div>
         </div>
-      )}
+      </div>
     </header>
   );
 }

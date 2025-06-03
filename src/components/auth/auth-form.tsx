@@ -72,7 +72,7 @@ export function AuthForm({ mode }: AuthFormProps) {
   };
 
   return (
-    <div className="w-full max-w-md mx-auto p-6 space-y-6">
+    <div className="w-full max-w-md mx-auto p-8 space-y-8 bg-white rounded-lg shadow-sm">
       <div className="text-center">
         <h2 className="text-2xl font-bold">
           {mode === 'signin' ? 'Sign in to your account' : 'Create an account'}
@@ -96,7 +96,7 @@ export function AuthForm({ mode }: AuthFormProps) {
         </p>
       </div>
 
-      <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+      <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
         <div>
           <label htmlFor="email" className="block text-sm font-medium text-gray-700">
             Email
@@ -104,7 +104,7 @@ export function AuthForm({ mode }: AuthFormProps) {
           <input
             {...register('email')}
             type="email"
-            className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500"
+            className="mt-2 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 transition-colors"
           />
           {errors.email && (
             <p className="mt-1 text-sm text-red-600">{errors.email.message}</p>
@@ -118,7 +118,7 @@ export function AuthForm({ mode }: AuthFormProps) {
           <input
             {...register('password')}
             type="password"
-            className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500"
+            className="mt-2 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 transition-colors"
           />
           {errors.password && (
             <p className="mt-1 text-sm text-red-600">{errors.password.message}</p>
@@ -134,7 +134,7 @@ export function AuthForm({ mode }: AuthFormProps) {
               {...register('phone')}
               type="tel"
               placeholder="+1234567890"
-              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500"
+              className="mt-2 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 transition-colors"
             />
             {errors.phone && (
               <p className="mt-1 text-sm text-red-600">{errors.phone.message}</p>
@@ -153,7 +153,7 @@ export function AuthForm({ mode }: AuthFormProps) {
           </div>
         )}
 
-        <Button type="submit" className="w-full" disabled={isLoading}>
+        <Button type="submit" className="w-full h-11 text-base" disabled={isLoading}>
           {isLoading ? (
             <Loader2 className="h-4 w-4 animate-spin" />
           ) : mode === 'signin' ? (
@@ -163,7 +163,7 @@ export function AuthForm({ mode }: AuthFormProps) {
           )}
         </Button>
 
-        <div className="relative">
+        <div className="relative my-8">
           <div className="absolute inset-0 flex items-center">
             <div className="w-full border-t border-gray-300" />
           </div>
@@ -172,7 +172,7 @@ export function AuthForm({ mode }: AuthFormProps) {
           </div>
         </div>
 
-        <div className="mt-6">
+        <div>
           <GoogleButton
             onClick={handleGoogleSignIn}
             disabled={isLoading}
