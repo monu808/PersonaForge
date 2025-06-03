@@ -59,13 +59,10 @@ export async function generateTavusVideo(data: TavusVideoRequest): Promise<Tavus
     }
 
     const { data: functionData, error: invokeError } = await supabase.functions.invoke(
-      'tavus-api',
+      'create-video',
       {
         body: JSON.stringify({
-          userId: userData.user.id,
-          metadata: {
-            personaId: data.personaId
-          },
+          personaId: data.personaId,
           script: data.script,
         }),
       }
@@ -89,7 +86,7 @@ export async function generateTavusVideo(data: TavusVideoRequest): Promise<Tavus
 export async function checkTavusVideoStatus(videoId: string): Promise<TavusVideoResponse> {
   try {
     const { data, error } = await supabase.functions.invoke(
-      'tavus-api/video-status',
+      'video-status',
       {
         body: null,
         query: { id: videoId },
