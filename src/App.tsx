@@ -4,6 +4,7 @@ import { Layout } from './components/layout/layout';
 import HomePage from './pages/home';
 import CreatePage from './pages/create';
 import DashboardPage from './pages/dashboard';
+import './index.css';
 
 function App() {
   return (
