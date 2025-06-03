@@ -1,22 +1,73 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { motion } from "framer-motion";
-import { Bell, Moon, Shield, Sun, User } from "lucide-react";
+import { Bell, Moon, Shield, Sun, User, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { supabase } from "@/lib/auth";
+import { updateUserSettings, getUserProfile } from "@/lib/api";
 
 export default function SettingsPage() {
   const [profileVisibility, setProfileVisibility] = useState<"public" | "private">("private");
   const [emailNotifications, setEmailNotifications] = useState(true);
   const [theme, setTheme] = useState<"light" | "dark" | "system">("system");
+  const [isLoading, setIsLoading] = useState(true);
+  const [isSaving, setIsSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    loadUserSettings();
+  }, []);
+
+  const loadUserSettings = async () => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error('No user found');
+
+      const { data: profile, error } = await getUserProfile(user.id);
+      if (error) throw error;
+
+      if (profile?.settings) {
+        setProfileVisibility(profile.settings.profile_visibility);
+        setEmailNotifications(profile.settings.email_notifications);
+        setTheme(profile.settings.theme);
+      }
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   const handleSaveSettings = async () => {
     try {
-      // TODO: Implement settings save functionality
-      console.log("Settings saved");
-    } catch (error) {
-      console.error("Error saving settings:", error);
+      setIsSaving(true);
+      setError(null);
+
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error('No user found');
+
+      const settings = {
+        profile_visibility: profileVisibility,
+        email_notifications: emailNotifications,
+        theme: theme,
+      };
+
+      const { error } = await updateUserSettings(user.id, settings);
+      if (error) throw error;
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setIsSaving(false);
     }
   };
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <Loader2 className="h-8 w-8 animate-spin text-primary-600" />
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gray-50 py-8">
@@ -27,6 +78,12 @@ export default function SettingsPage() {
             Manage your account settings and preferences
           </p>
         </div>
+
+        {error && (
+          <div className="mb-6 bg-red-50 text-red-700 p-3 rounded-md text-sm">
+            {error}
+          </div>
+        )}
 
         <div className="space-y-6">
           {/* Profile Visibility */}
@@ -178,8 +235,17 @@ export default function SettingsPage() {
 
           {/* Save Changes */}
           <div className="flex justify-end space-x-4">
-            <Button variant="outline">Cancel</Button>
-            <Button onClick={handleSaveSettings}>Save Changes</Button>
+            <Button variant="outline" onClick={loadUserSettings}>Cancel</Button>
+            <Button onClick={handleSaveSettings} disabled={isSaving}>
+              {isSaving ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                  Saving...
+                </>
+              ) : (
+                'Save Changes'
+              )}
+            </Button>
           </div>
         </div>
       </div>
