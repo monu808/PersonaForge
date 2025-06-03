@@ -7,36 +7,30 @@ import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { NAV_ITEMS } from '@/lib/constants';
 import { supabase } from '@/lib/auth';
+import { useAuth } from '@/lib/context/auth-context';
 
-export default function Navbar() {
+interface NavbarProps {
+  publicOnly?: boolean;
+}
+
+export default function Navbar({ publicOnly = false }: NavbarProps) {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
   const [userProfile, setUserProfile] = useState(null);
   const navigate = useNavigate();
+  const { user } = useAuth();
   
   const toggleMobileMenu = () => setIsMobileMenuOpen(!isMobileMenuOpen);
   const toggleUserMenu = () => setIsUserMenuOpen(!isUserMenuOpen);
 
   useEffect(() => {
-    loadUserProfile();
-
-    // Subscribe to auth state changes
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
-      if (event === 'SIGNED_IN' || event === 'USER_UPDATED') {
-        await loadUserProfile();
-      } else if (event === 'SIGNED_OUT') {
-        setUserProfile(null);
-      }
-    });
-
-    return () => {
-      subscription.unsubscribe();
-    };
-  }, []);
+    if (user) {
+      loadUserProfile();
+    }
+  }, [user]);
 
   const loadUserProfile = async () => {
     try {
-      const { data: { user } } = await supabase.auth.getUser();
       if (user) {
         const { data: profile } = await getUserProfile(user.id);
         setUserProfile(profile);
@@ -75,77 +69,119 @@ export default function Navbar() {
           </div>
 
           {/* Desktop navigation */}
-          <nav className="hidden md:flex items-center space-x-6">
-            {NAV_ITEMS.slice(0, 4).map((item) => (
+          {!publicOnly ? (
+            // Authenticated navigation
+            <nav className="hidden md:flex items-center space-x-6">
+              {NAV_ITEMS.slice(0, 4).map((item) => (
+                <Link
+                  key={item.href}
+                  to={item.href}
+                  className="text-gray-600 hover:text-primary-600 px-3 py-2 text-sm font-medium transition-colors rounded-md"
+                >
+                  {item.title}
+                </Link>
+              ))}
+            </nav>
+          ) : (
+            // Public navigation
+            <nav className="hidden md:flex items-center space-x-6">
               <Link
-                key={item.href}
-                to={item.href}
+                to="/#features"
                 className="text-gray-600 hover:text-primary-600 px-3 py-2 text-sm font-medium transition-colors rounded-md"
               >
-                {item.title}
+                Features
               </Link>
-            ))}
-          </nav>
+              <Link
+                to="/#templates"
+                className="text-gray-600 hover:text-primary-600 px-3 py-2 text-sm font-medium transition-colors rounded-md"
+              >
+                Templates
+              </Link>
+              <Link
+                to="/#pricing"
+                className="text-gray-600 hover:text-primary-600 px-3 py-2 text-sm font-medium transition-colors rounded-md"
+              >
+                Pricing
+              </Link>
+            </nav>
+          )}
 
           {/* User actions */}
           <div className="flex items-center space-x-4">
-            {/* Notifications */}
-            <button className="hidden md:flex text-gray-600 hover:text-primary-600 p-2 rounded-full transition-colors">
-              <Bell className="h-5 w-5" />
-            </button>
-
-            {/* User menu */}
-            <div className="relative hidden md:block">
-              <div>
-                <button
-                  type="button"
-                  className="flex items-center space-x-2 text-sm rounded-full focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2"
-                  onClick={toggleUserMenu}
-                >
-                  <Avatar>
-                    <AvatarImage 
-                      src={userProfile?.avatar_url} 
-                      alt={userProfile?.full_name || 'User'} 
-                    />
-                    <AvatarFallback className="bg-primary-100 text-primary-700">
-                      {userProfile?.full_name?.split(' ').map(n => n[0]).join('') || '?'}
-                    </AvatarFallback>
-                  </Avatar>
-                  <span className="text-gray-700 font-medium hidden lg:block">{userProfile?.full_name}</span>
-                  <ChevronDown className="h-4 w-4 text-gray-500" />
+            {user ? (
+              // Authenticated user actions
+              <>
+                {/* Notifications */}
+                <button className="hidden md:flex text-gray-600 hover:text-primary-600 p-2 rounded-full transition-colors">
+                  <Bell className="h-5 w-5" />
                 </button>
-              </div>
 
-              {/* User dropdown menu */}
-              <div className={`absolute right-0 mt-2 w-48 py-2 bg-white rounded-md shadow-lg ring-1 ring-black ring-opacity-5 transition-opacity duration-150 ${isUserMenuOpen ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}>
-                <div className="absolute right-0 mt-2 w-48 py-2 bg-white rounded-md shadow-lg ring-1 ring-black ring-opacity-5">
-                  <Link
-                    to="/profile"
-                    className="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
-                    onClick={() => setIsUserMenuOpen(false)}
-                  >
-                    <User className="mr-2 h-4 w-4" />
-                    Your Profile
-                  </Link>
-                  <Link
-                    to="/settings"
-                    className="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
-                    onClick={() => setIsUserMenuOpen(false)}
-                  >
-                    <Settings className="mr-2 h-4 w-4" />
-                    Settings
-                  </Link>
-                  <div className="border-t border-gray-200 my-1"></div>
-                  <button
-                    onClick={handleSignOut}
-                    className="flex w-full items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
-                  >
-                    <LogOut className="mr-2 h-4 w-4" />
-                    Sign out
-                  </button>
+                {/* User menu */}
+                <div className="relative hidden md:block">
+                  <div>
+                    <button
+                      type="button"
+                      className="flex items-center space-x-2 text-sm rounded-full focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2"
+                      onClick={toggleUserMenu}
+                    >
+                      <Avatar>
+                        <AvatarImage 
+                          src={userProfile?.avatar_url} 
+                          alt={userProfile?.full_name || 'User'} 
+                        />
+                        <AvatarFallback className="bg-primary-100 text-primary-700">
+                          {userProfile?.full_name?.split(' ').map(n => n[0]).join('') || '?'}
+                        </AvatarFallback>
+                      </Avatar>
+                      <span className="text-gray-700 font-medium hidden lg:block">
+                        {userProfile?.full_name}
+                      </span>
+                      <ChevronDown className="h-4 w-4 text-gray-500" />
+                    </button>
+                  </div>
+
+                  {/* User dropdown menu */}
+                  <div className={`absolute right-0 mt-2 w-48 py-2 bg-white rounded-md shadow-lg ring-1 ring-black ring-opacity-5 transition-opacity duration-150 ${isUserMenuOpen ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}>
+                    <div className="absolute right-0 mt-2 w-48 py-2 bg-white rounded-md shadow-lg ring-1 ring-black ring-opacity-5">
+                      <Link
+                        to="/profile"
+                        className="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                        onClick={() => setIsUserMenuOpen(false)}
+                      >
+                        <User className="mr-2 h-4 w-4" />
+                        Your Profile
+                      </Link>
+                      <Link
+                        to="/settings"
+                        className="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                        onClick={() => setIsUserMenuOpen(false)}
+                      >
+                        <Settings className="mr-2 h-4 w-4" />
+                        Settings
+                      </Link>
+                      <div className="border-t border-gray-200 my-1"></div>
+                      <button
+                        onClick={handleSignOut}
+                        className="flex w-full items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                      >
+                        <LogOut className="mr-2 h-4 w-4" />
+                        Sign out
+                      </button>
+                    </div>
+                  </div>
                 </div>
+              </>
+            ) : (
+              // Non-authenticated user actions (sign in/up buttons)
+              <div className="hidden md:flex items-center space-x-4">
+                <Button variant="outline" asChild>
+                  <Link to="/auth/sign-in">Sign in</Link>
+                </Button>
+                <Button asChild>
+                  <Link to="/auth/sign-up">Sign up</Link>
+                </Button>
               </div>
-            </div>
+            )}
 
             {/* Mobile menu button */}
             <button
@@ -154,9 +190,9 @@ export default function Navbar() {
               onClick={toggleMobileMenu}
             >
               {isMobileMenuOpen ? (
-                <X className="h-6 w-6\" aria-hidden="true" />
+                <X className="h-6 w-6" aria-hidden="true" />
               ) : (
-                <Menu className="h-6 w-6\" aria-hidden="true" />
+                <Menu className="h-6 w-6" aria-hidden="true" />
               )}
             </button>
           </div>
@@ -167,27 +203,75 @@ export default function Navbar() {
       <div className={`md:hidden transform transition-transform duration-200 ease-in-out ${isMobileMenuOpen ? 'translate-y-0' : '-translate-y-full'}`}>
         <div className="md:hidden border-t border-gray-200 bg-white">
           <div className="px-2 pt-2 pb-3 space-y-1 sm:px-3">
-            {NAV_ITEMS.map((item) => (
-              <Link
-                key={item.href}
-                to={item.href}
-                className="block px-3 py-2 rounded-md text-base font-medium text-gray-700 hover:text-primary-600 hover:bg-gray-50"
-                onClick={() => setIsMobileMenuOpen(false)}
-              >
-                <div className="flex items-center">
-                  {item.icon && <item.icon className="mr-3 h-5 w-5" />}
-                  {item.title}
-                </div>
-              </Link>
-            ))}
-            <div className="border-t border-gray-200 my-2"></div>
-            <button
-              onClick={handleSignOut}
-              className="w-full flex items-center px-3 py-2 rounded-md text-base font-medium text-gray-700 hover:text-primary-600 hover:bg-gray-50"
-            >
-              <LogOut className="mr-3 h-5 w-5" />
-              Sign out
-            </button>
+            {user ? (
+              // Authenticated mobile menu
+              NAV_ITEMS.map((item) => (
+                <Link
+                  key={item.href}
+                  to={item.href}
+                  className="block px-3 py-2 rounded-md text-base font-medium text-gray-700 hover:text-primary-600 hover:bg-gray-50"
+                  onClick={() => setIsMobileMenuOpen(false)}
+                >
+                  <div className="flex items-center">
+                    {item.icon && <item.icon className="mr-3 h-5 w-5" />}
+                    {item.title}
+                  </div>
+                </Link>
+              ))
+            ) : (
+              // Non-authenticated mobile menu
+              <>
+                <Link
+                  to="/#features"
+                  className="block px-3 py-2 rounded-md text-base font-medium text-gray-700 hover:text-primary-600 hover:bg-gray-50"
+                  onClick={() => setIsMobileMenuOpen(false)}
+                >
+                  Features
+                </Link>
+                <Link
+                  to="/#templates"
+                  className="block px-3 py-2 rounded-md text-base font-medium text-gray-700 hover:text-primary-600 hover:bg-gray-50"
+                  onClick={() => setIsMobileMenuOpen(false)}
+                >
+                  Templates
+                </Link>
+                <Link
+                  to="/#pricing"
+                  className="block px-3 py-2 rounded-md text-base font-medium text-gray-700 hover:text-primary-600 hover:bg-gray-50"
+                  onClick={() => setIsMobileMenuOpen(false)}
+                >
+                  Pricing
+                </Link>
+                <div className="border-t border-gray-200 my-2"></div>
+                <Link
+                  to="/auth/sign-in"
+                  className="block px-3 py-2 rounded-md text-base font-medium text-primary-600 hover:bg-primary-50"
+                  onClick={() => setIsMobileMenuOpen(false)}
+                >
+                  Sign in
+                </Link>
+                <Link
+                  to="/auth/sign-up"
+                  className="block px-3 py-2 rounded-md text-base font-medium bg-primary-600 text-white hover:bg-primary-700 rounded-md py-2 px-3"
+                  onClick={() => setIsMobileMenuOpen(false)}
+                >
+                  Sign up
+                </Link>
+              </>
+            )}
+            
+            {user && (
+              <>
+                <div className="border-t border-gray-200 my-2"></div>
+                <button
+                  onClick={handleSignOut}
+                  className="w-full flex items-center px-3 py-2 rounded-md text-base font-medium text-gray-700 hover:text-primary-600 hover:bg-gray-50"
+                >
+                  <LogOut className="mr-3 h-5 w-5" />
+                  Sign out
+                </button>
+              </>
+            )}
           </div>
         </div>
       </div>
