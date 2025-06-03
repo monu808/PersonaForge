@@ -178,7 +178,7 @@ export default function Navbar() {
               onClick={toggleMobileMenu}
             >
               {isMobileMenuOpen ? (
-                <X className="h-6 w-6\" aria-hidden="true" />
+                <X className="h-6 w-6\" aria-hidden=\"true" />
               ) : (
                 <Menu className="h-6 w-6\" aria-hidden="true" />
               )}
