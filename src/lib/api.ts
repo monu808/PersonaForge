@@ -1,15 +1,12 @@
 import { supabase } from './auth';
 import { User } from './types';
 
-export async function uploadAvatar(file: File) {
+export async function uploadAvatar(file: File, userId: string) {
   try {
     const fileExt = file.name.split('.').pop();
-    // Get current user
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) throw new Error('No authenticated user');
     
     // Create filename with user ID prefix for RLS
-    const fileName = `${user.id}/${Math.random()}.${fileExt}`;
+    const fileName = `${userId}/${Math.random()}.${fileExt}`;
 
     const { error: uploadError } = await supabase.storage
       .from('avatars')
