@@ -32,7 +32,12 @@ export function AuthForm() {
 
       if (error) throw error;
     } catch (err) {
-      setError(err.message);
+      if (err.message === 'User already registered') {
+        setError('This email is already registered. Please sign in instead, or use a different email to sign up.');
+        setMode('signin'); // Automatically switch to sign in mode
+      } else {
+        setError(err.message);
+      }
     } finally {
       setIsLoading(false);
     }
