@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -9,6 +10,7 @@ import { signUpSchema, signUp, signIn, signInWithGoogle } from '@/lib/auth';
 type FormData = z.infer<typeof signUpSchema>;
 
 export function AuthForm() {
+  const navigate = useNavigate();
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [mode, setMode] = useState<'signin' | 'signup'>('signin');
@@ -26,15 +28,22 @@ export function AuthForm() {
     setError(null);
 
     try {
-      const { error } = mode === 'signup' 
-        ? await signUp(data)
-        : await signIn(data);
-
-      if (error) throw error;
+      if (mode === 'signup') {
+        const { error } = await signUp(data);
+        if (error) throw error;
+        // Show success message for signup
+        setError('Please check your email to verify your account.');
+      } else {
+        const { data: authData, error } = await signIn(data);
+        if (error) throw error;
+        if (authData?.user) {
+          navigate('/dashboard');
+        }
+      }
     } catch (err) {
       if (err.message === 'User already registered') {
-        setError('This email is already registered. Please sign in instead, or use a different email to sign up.');
-        setMode('signin'); // Automatically switch to sign in mode
+        setError('This email is already registered. Please sign in instead.');
+        setMode('signin');
       } else {
         setError(err.message);
       }
@@ -48,8 +57,11 @@ export function AuthForm() {
     setError(null);
 
     try {
-      const { error } = await signInWithGoogle();
+      const { data, error } = await signInWithGoogle();
       if (error) throw error;
+      if (data) {
+        navigate('/dashboard');
+      }
     } catch (err) {
       setError(err.message);
     } finally {
@@ -118,7 +130,11 @@ export function AuthForm() {
         </div>
 
         {error && (
-          <div className="p-3 rounded-md bg-red-50 text-red-700 text-sm flex items-center">
+          <div className={`p-3 rounded-md ${
+            error.includes('Please check your email')
+              ? 'bg-green-50 text-green-700'
+              : 'bg-red-50 text-red-700'
+          } text-sm flex items-center`}>
             <AlertCircle className="h-4 w-4 mr-2" />
             {error}
           </div>
