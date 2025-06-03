@@ -35,7 +35,7 @@ export async function getUserProfile(userId: string) {
       .from('user_settings')
       .select('*')
       .eq('user_id', userId)
-      .single();
+      .maybeSingle();
 
     if (settingsError) throw settingsError;
 
@@ -48,8 +48,15 @@ export async function getUserProfile(userId: string) {
 
     if (profileError) throw profileError;
 
+    // If no settings exist, use default values
+    const defaultSettings = {
+      profile_visibility: 'private',
+      email_notifications: true,
+      theme: 'system'
+    };
+
     return { 
-      data: { ...profile, settings }, 
+      data: { ...profile, settings: settings || defaultSettings }, 
       error: null 
     };
   } catch (error) {
