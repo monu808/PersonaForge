@@ -32,10 +32,10 @@ export async function updateProfile(userId: string, updates: Partial<User>) {
       .update(updates)
       .eq('id', userId)
       .select()
-      .single();
+      .limit(1);
 
     if (error) throw error;
-    return { data, error: null };
+    return { data: data?.[0] || null, error: null };
   } catch (error) {
     return { data: null, error };
   }
@@ -47,10 +47,10 @@ export async function updateUserSettings(userId: string, settings: User['setting
       .from('user_settings')
       .upsert({ user_id: userId, ...settings })
       .select()
-      .single();
+      .limit(1);
 
     if (error) throw error;
-    return { data, error: null };
+    return { data: data?.[0] || null, error: null };
   } catch (error) {
     return { data: null, error };
   }
@@ -58,27 +58,29 @@ export async function updateUserSettings(userId: string, settings: User['setting
 
 export async function getUserProfile(userId: string) {
   try {
-    const { data: user, error: userError } = await supabase
+    const { data: users, error: userError } = await supabase
       .from('users')
       .select('*')
       .eq('id', userId)
-      .single();
+      .limit(1);
 
     // If no user found, return null data without throwing error
-    if (userError && userError.code === 'PGRST116') {
+    if (!users || users.length === 0) {
       return { data: null, error: null };
     }
 
     if (userError) throw userError;
 
+    const user = users[0];
+
     const { data: settings, error: settingsError } = await supabase
       .from('user_settings')
       .select('*')
       .eq('user_id', userId)
-      .single();
+      .limit(1);
 
     // Settings might not exist yet, which is fine
-    if (settingsError && settingsError.code === 'PGRST116') {
+    if (!settings || settings.length === 0) {
       return {
         data: { ...user, settings: null },
         error: null,
@@ -88,7 +90,7 @@ export async function getUserProfile(userId: string) {
     if (settingsError) throw settingsError;
 
     return {
-      data: { ...user, settings },
+      data: { ...user, settings: settings[0] },
       error: null,
     };
   } catch (error) {
