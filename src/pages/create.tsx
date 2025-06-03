@@ -1,14 +1,17 @@
-// Previous imports remain the same...
+import React, { useState } from 'react';
 import { createPersona } from '@/lib/api/personas';
 import { useNavigate } from 'react-router-dom';
 import { toast } from '@/components/ui/use-toast';
+import { Loader2, Sparkles } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 
 export default function CreatePage() {
   // Previous state declarations remain the same...
   const navigate = useNavigate();
   const [isCreating, setIsCreating] = useState(false);
-
-  // Previous functions remain the same...
+  const [personaName, setPersonaName] = useState('');
+  const [personaDescription, setPersonaDescription] = useState('');
+  const [selectedTraits, setSelectedTraits] = useState([]);
 
   const handleCreatePersona = async () => {
     try {
@@ -41,22 +44,23 @@ export default function CreatePage() {
     }
   };
 
-  // Previous JSX remains the same until the final button...
-  
-  {/* Replace the final Create Persona button with: */}
-  <Button 
-    onClick={handleCreatePersona} 
-    disabled={isCreating || !personaName || !personaDescription}
-  >
-    {isCreating ? (
-      <>
-        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-        Creating...
-      </>
-    ) : (
-      <>
-        Create Persona <Sparkles className="ml-2 h-4 w-4" />
-      </>
-    )}
-  </Button>
+  return (
+    <div>
+      <Button 
+        onClick={handleCreatePersona} 
+        disabled={isCreating || !personaName || !personaDescription}
+      >
+        {isCreating ? (
+          <>
+            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+            Creating...
+          </>
+        ) : (
+          <>
+            Create Persona <Sparkles className="ml-2 h-4 w-4" />
+          </>
+        )}
+      </Button>
+    </div>
+  );
 }
