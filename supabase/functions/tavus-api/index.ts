@@ -1,7 +1,7 @@
 // Tavus API Edge Function
 // This function handles all interactions with the Tavus API
 
-import { serve } from "https://deno.land/std@0.177.0/http/server.ts";
+import { createClient } from "npm:@supabase/supabase-js@2.39.3";
 
 // CORS headers for cross-origin requests
 const corsHeaders = {
@@ -27,6 +27,16 @@ interface TavusReplicaRequest {
   userId: string;
 }
 
+// Initialize Supabase client
+const supabaseUrl = Deno.env.get('SUPABASE_URL');
+const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+
+if (!supabaseUrl || !supabaseKey) {
+  throw new Error('Missing Supabase environment variables');
+}
+
+const supabase = createClient(supabaseUrl, supabaseKey);
+
 serve(async (req) => {
   // Handle CORS preflight requests
   if (req.method === "OPTIONS") {
@@ -49,8 +59,7 @@ serve(async (req) => {
     // Common headers for Tavus API requests
     const headers = {
       "Authorization": `Bearer ${TAVUS_API_KEY}`,
-      "Content-Type": "application/json",
-      ...corsHeaders
+      "Content-Type": "application/json"
     };
 
     // Handle different API endpoints
@@ -86,12 +95,6 @@ serve(async (req) => {
 async function handleCreateReplica(req: Request, headers: HeadersInit) {
   const { name, description, userId }: TavusReplicaRequest = await req.json();
   
-  // Store in database that this user has initiated a replica creation
-  const { data: { session }, error: authError } = await supabase.auth.getSession();
-  if (authError || !session) {
-    throw new Error("Unauthorized: " + (authError?.message || "No active session"));
-  }
-  
   // Call Tavus API to create a replica
   const response = await fetch("https://api.tavus.io/v2/replicas", {
     method: "POST",
@@ -116,6 +119,10 @@ async function handleCreateReplica(req: Request, headers: HeadersInit) {
       
     if (dbError) {
       console.error("Failed to update user_settings with replica ID:", dbError);
+      return new Response(JSON.stringify({ error: "Failed to update user settings" }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        status: 500,
+      });
     }
   }
 
@@ -150,24 +157,29 @@ async function handleGenerateVideo(req: Request, headers: HeadersInit) {
     });
   }
 
-  // Call Tavus API to generate a video
-  const replicaId = userSettings.tavus_replica_id;
-  const response = await fetch("https://api.tavus.io/v2/videos", {
-    method: "POST",
-    headers,
-    body: JSON.stringify({
-      replica_id: replicaId,
-      script: script,
-      audio_file: audio_file,
-      callback_url: `${Deno.env.get("SUPABASE_URL")}/functions/v1/tavus-api/webhook`,
-      metadata: metadata || { user_id: userId },
-    }),
-  });
+  try {
+    // Call Tavus API to generate a video
+    const replicaId = userSettings.tavus_replica_id;
+    const response = await fetch("https://api.tavus.io/v2/videos", {
+      method: "POST",
+      headers,
+      body: JSON.stringify({
+        replica_id: replicaId,
+        script: script,
+        audio_file: audio_file,
+        callback_url: `${Deno.env.get("SUPABASE_URL")}/functions/v1/tavus-webhook`,
+        metadata: metadata || { user_id: userId },
+      }),
+    });
 
-  const data = await response.json();
-  
-  // Store video generation information in our database
-  if (response.ok) {
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.message || 'Failed to generate video');
+    }
+
+    const data = await response.json();
+    
+    // Store video generation information in our database
     const { error: insertError } = await supabase
       .from("persona_content")
       .insert({
@@ -181,29 +193,44 @@ async function handleGenerateVideo(req: Request, headers: HeadersInit) {
           created_at: new Date().toISOString()
         }
       });
-      
+        
     if (insertError) {
       console.error("Failed to insert video record:", insertError);
+      return new Response(JSON.stringify({ error: "Failed to save video record" }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        status: 500,
+      });
     }
-  }
 
-  return new Response(JSON.stringify(data), {
-    headers: { ...corsHeaders, "Content-Type": "application/json" },
-    status: response.status,
-  });
+    return new Response(JSON.stringify(data), {
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+      status: response.status,
+    });
+  } catch (error) {
+    console.error("Error generating video:", error);
+    return new Response(JSON.stringify({ error: error.message || "Failed to generate video" }), {
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+      status: 500,
+    });
+  }
 }
 
 async function handleVideoStatus(videoId: string, headers: HeadersInit) {
-  // Call Tavus API to check video status
-  const response = await fetch(`https://api.tavus.io/v2/videos/${videoId}`, {
-    method: "GET",
-    headers,
-  });
+  try {
+    // Call Tavus API to check video status
+    const response = await fetch(`https://api.tavus.io/v2/videos/${videoId}`, {
+      method: "GET",
+      headers,
+    });
 
-  const data = await response.json();
-  
-  // Update our database with the current status
-  if (response.ok) {
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.message || 'Failed to get video status');
+    }
+
+    const data = await response.json();
+    
+    // Update our database with the current status
     const { error: updateError } = await supabase
       .from("persona_content")
       .update({
@@ -214,14 +241,24 @@ async function handleVideoStatus(videoId: string, headers: HeadersInit) {
         }
       })
       .eq("content", videoId);
-      
+        
     if (updateError) {
       console.error("Failed to update video status:", updateError);
+      return new Response(JSON.stringify({ error: "Failed to update video status" }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        status: 500,
+      });
     }
-  }
 
-  return new Response(JSON.stringify(data), {
-    headers: { ...corsHeaders, "Content-Type": "application/json" },
-    status: response.status,
-  });
+    return new Response(JSON.stringify(data), {
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+      status: response.status,
+    });
+  } catch (error) {
+    console.error("Error checking video status:", error);
+    return new Response(JSON.stringify({ error: error.message || "Failed to check video status" }), {
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+      status: 500,
+    });
+  }
 }
