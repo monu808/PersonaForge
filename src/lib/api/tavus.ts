@@ -9,6 +9,7 @@ export interface TavusVideoResponse {
   id: string;
   status: string;
   url?: string;
+  thumbnail_url?: string;
   error?: string;
 }
 
@@ -42,6 +43,23 @@ export async function generateTavusVideo(data: TavusVideoRequest): Promise<Tavus
     return functionData;
   } catch (error) {
     console.error('Error generating Tavus video:', error);
+    throw error;
+  }
+}
+
+export async function checkTavusVideoStatus(videoId: string): Promise<TavusVideoResponse> {
+  try {
+    const { data, error } = await supabase.functions.invoke('video-status', {
+      body: JSON.stringify({ videoId }),
+    });
+
+    if (error) {
+      throw new Error(error.message);
+    }
+
+    return data;
+  } catch (error) {
+    console.error('Error checking Tavus video status:', error);
     throw error;
   }
 }
