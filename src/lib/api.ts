@@ -81,15 +81,29 @@ export async function getUserProfile(userId: string) {
 
 export async function updateProfile(userId: string, updates: Partial<User>) {
   try {
-    const { data, error } = await supabase
+    // If email is not provided in updates, fetch the current user data first
+    if (!updates.email) {
+      const { data: existingUser, error: fetchError } = await supabase
+        .from('users')
+        .select('email')
+        .eq('id', userId)
+        .single();
+
+      if (fetchError) throw fetchError;
+      
+      // Combine existing email with new updates
+      updates.email = existingUser.email;
+    }
+
+    const { data, error: upsertError } = await supabase
       .from('users')
       .upsert({
         id: userId,
         ...updates
       }, { onConflict: 'id' })
-      .select()
+      .select();
 
-    if (error) throw error;
+    if (upsertError) throw upsertError;
     return { data, error: null };
   } catch (error) {
     console.error('Error updating profile:', error);
