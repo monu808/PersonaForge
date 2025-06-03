@@ -57,7 +57,9 @@ export async function generateTavusVideo(data: TavusVideoRequest): Promise<Tavus
     });
 
     if (error) {
-      throw new Error(error.message);
+      // Check if there's a specific error message from the Edge Function
+      const errorMessage = error.context?.data?.error || error.message;
+      throw new Error(errorMessage);
     }
 
     // Store video metadata in persona_content table
@@ -91,7 +93,9 @@ export async function checkTavusVideoStatus(videoId: string): Promise<TavusVideo
     });
 
     if (error) {
-      throw new Error(error.message);
+      // Check if there's a specific error message from the Edge Function
+      const errorMessage = error.context?.data?.error || error.message;
+      throw new Error(errorMessage);
     }
 
     return data;
