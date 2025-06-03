@@ -1,5 +1,5 @@
 import { supabase } from './auth';
-import { User, UserSettings } from './types';
+import { User } from './types';
 
 export async function uploadAvatar(file: File, userId: string) {
   try {
@@ -75,6 +75,23 @@ export async function getUserProfile(userId: string) {
     };
   } catch (error) {
     console.error('Error fetching user profile:', error);
+    return { data: null, error };
+  }
+}
+
+export async function updateProfile(userId: string, updates: Partial<User>) {
+  try {
+    const { data, error } = await supabase
+      .from('users')
+      .update(updates)
+      .eq('id', userId)
+      .select()
+      .single();
+
+    if (error) throw error;
+    return { data, error: null };
+  } catch (error) {
+    console.error('Error updating profile:', error);
     return { data: null, error };
   }
 }
