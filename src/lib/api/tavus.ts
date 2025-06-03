@@ -13,6 +13,43 @@ export interface TavusVideoResponse {
   error?: string;
 }
 
+export interface PersonaVideo {
+  id: string;
+  persona_id: string;
+  content_type: string;
+  content: string;
+  metadata: {
+    tavus_video_id: string;
+    status: string;
+    video_url?: string;
+    thumbnail_url?: string;
+    duration?: number;
+    script?: string;
+    error?: string;
+  };
+  created_at: string;
+}
+
+export async function getPersonaVideos(personaId: string): Promise<PersonaVideo[]> {
+  try {
+    const { data, error } = await supabase
+      .from('persona_content')
+      .select('*')
+      .eq('persona_id', personaId)
+      .eq('content_type', 'video')
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      throw new Error(error.message);
+    }
+
+    return data || [];
+  } catch (error) {
+    console.error('Error fetching persona videos:', error);
+    throw error;
+  }
+}
+
 export async function generateTavusVideo(data: TavusVideoRequest): Promise<TavusVideoResponse> {
   try {
     const { data: functionData, error } = await supabase.functions.invoke('create-video', {
