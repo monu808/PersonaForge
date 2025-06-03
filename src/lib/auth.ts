@@ -96,13 +96,14 @@ export async function signInWithGoogle() {
 
 export async function signOut() {
   try {
+    // First, sign out from Supabase
     const { error } = await supabase.auth.signOut();
     if (error) throw error;
-    
-    // Clear all auth-related storage
-    localStorage.removeItem('supabase.auth.token');
-    sessionStorage.clear();
-    
+
+    // Clear all Supabase-related storage
+    window.localStorage.removeItem('sb-' + import.meta.env.VITE_SUPABASE_URL + '-auth-token');
+    window.sessionStorage.clear();
+
     return { error: null };
   } catch (error) {
     console.error('Sign out error:', error);
