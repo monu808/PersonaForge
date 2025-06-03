@@ -1,22 +1,32 @@
 import { supabase } from './auth';
 import { User } from './types';
 
-export async function uploadAvatar(file: File, userId: string) {
+export async function uploadAvatar(file: File) {
   try {
-    // Create filename with user ID as folder to enforce RLS
     const fileExt = file.name.split('.').pop();
-    const fileName = `${userId}/${Math.random()}.${fileExt}`;
+    // Get current user
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) throw new Error('No authenticated user');
+    
+    // Create filename with user ID prefix for RLS
+    const fileName = `${user.id}/${Math.random()}.${fileExt}`;
 
     const { error: uploadError } = await supabase.storage
       .from('avatars')
       .upload(fileName, file);
 
-    if (uploadError) {
-      return { data: null, error: uploadError };
-    }
+    if (uploadError) throw uploadError;
 
-    return { data: fileName, error: null };
+    const { data: { publicUrl }, error: urlError } = await supabase.storage
+      .from('avatars')
+      .getPublicUrl(fileName);
+
+    if (urlError) throw urlError;
+    
+    // Return the public URL
+    return { url: publicUrl, error: null };
   } catch (error) {
-    return { data: null, error };
+    console.error('Avatar upload error:', error);
+    return { url: null, error };
   }
 }
