@@ -5,7 +5,7 @@ import HomePage from './pages/home';
 import CreatePage from './pages/create';
 import DashboardPage from './pages/dashboard';
 import SettingsPage from './pages/settings';
-import './app.css';
+import './index.css';
 
 function App() {
   return (
