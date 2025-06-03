@@ -7,6 +7,7 @@ import {
   CheckCircle2,
   Circle,
   Info,
+  Loader2,
   MessageSquare,
   Mic,
   Plus,
