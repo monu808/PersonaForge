@@ -6,17 +6,12 @@ export async function uploadAvatar(file: File) {
     const fileExt = file.name.split('.').pop();
     const fileName = `${Math.random()}.${fileExt}`;
 
-    // Upload to the avatars bucket
     const { error: uploadError } = await supabase.storage
       .from('avatars')
-      .upload(fileName, file, {
-        cacheControl: '3600',
-        upsert: false
-      });
+      .upload(fileName, file);
 
     if (uploadError) throw uploadError;
 
-    // Get the public URL
     const { data: { publicUrl }, error: urlError } = await supabase.storage
       .from('avatars')
       .getPublicUrl(fileName);
