@@ -1,10 +1,31 @@
+import { type ClassValue } from "clsx";
+
 export interface User {
   id: string;
-  name: string;
   email: string;
-  role: 'creator' | 'professional' | 'emergency';
-  avatarUrl?: string;
-  createdAt: Date;
+  full_name: string;
+  avatar_url?: string;
+  bio?: string;
+  location?: string;
+  social_links?: {
+    twitter?: string;
+    linkedin?: string;
+    github?: string;
+    website?: string;
+  };
+  settings?: {
+    profile_visibility: 'public' | 'private';
+    email_notifications: boolean;
+    theme: 'light' | 'dark' | 'system';
+  };
+  created_at: Date;
+  updated_at: Date;
+}
+
+export interface NavItem {
+  title: string;
+  href: string;
+  icon?: React.ReactNode;
 }
 
 export interface PersonaTrait {
@@ -12,7 +33,7 @@ export interface PersonaTrait {
   name: string;
   description: string;
   category: 'personality' | 'voice' | 'behavior' | 'knowledge';
-  intensity?: number; // 0-100 scale for applicable traits
+  intensity?: number;
 }
 
 export interface PersonaTemplate {
@@ -37,9 +58,3 @@ export interface Persona {
   isPublished: boolean;
   usageCount: number;
 }
-
-export type NavItem = {
-  title: string;
-  href: string;
-  icon?: React.ReactNode;
-};
