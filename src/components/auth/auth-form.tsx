@@ -1,19 +1,23 @@
 import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { AlertCircle, Loader2, Mail } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { signUpSchema, signUp, signIn, signInWithGoogle } from '@/lib/auth';
+import GoogleButton from 'react-google-button';
 
 type FormData = z.infer<typeof signUpSchema>;
 
-export function AuthForm() {
+interface AuthFormProps {
+  mode: 'signin' | 'signup';
+}
+
+export function AuthForm({ mode }: AuthFormProps) {
   const navigate = useNavigate();
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [mode, setMode] = useState<'signin' | 'signup'>('signin');
 
   const {
     register,
@@ -31,19 +35,17 @@ export function AuthForm() {
       if (mode === 'signup') {
         const { error } = await signUp(data);
         if (error) throw error;
-        // Show success message for signup
         setError('Please check your email to verify your account.');
       } else {
         const { data: authData, error } = await signIn(data);
         if (error) throw error;
         if (authData?.user) {
-          navigate('/dashboard');
+          navigate('/dashboard', { replace: true });
         }
       }
     } catch (err) {
       if (err.message === 'User already registered') {
         setError('This email is already registered. Please sign in instead.');
-        setMode('signin');
       } else {
         setError(err.message);
       }
@@ -60,7 +62,7 @@ export function AuthForm() {
       const { data, error } = await signInWithGoogle();
       if (error) throw error;
       if (data) {
-        navigate('/dashboard');
+        navigate('/dashboard', { replace: true });
       }
     } catch (err) {
       setError(err.message);
@@ -79,22 +81,16 @@ export function AuthForm() {
           {mode === 'signin' ? (
             <>
               Don't have an account?{' '}
-              <button
-                onClick={() => setMode('signup')}
-                className="text-primary-600 hover:text-primary-500"
-              >
+              <Link to="/auth/sign-up" className="text-primary-600 hover:text-primary-500">
                 Sign up
-              </button>
+              </Link>
             </>
           ) : (
             <>
               Already have an account?{' '}
-              <button
-                onClick={() => setMode('signin')}
-                className="text-primary-600 hover:text-primary-500"
-              >
+              <Link to="/auth/sign-in" className="text-primary-600 hover:text-primary-500">
                 Sign in
-              </button>
+              </Link>
             </>
           )}
         </p>
@@ -129,6 +125,23 @@ export function AuthForm() {
           )}
         </div>
 
+        {mode === 'signup' && (
+          <div>
+            <label htmlFor="phone" className="block text-sm font-medium text-gray-700">
+              Phone Number (optional)
+            </label>
+            <input
+              {...register('phone')}
+              type="tel"
+              placeholder="+1234567890"
+              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500"
+            />
+            {errors.phone && (
+              <p className="mt-1 text-sm text-red-600">{errors.phone.message}</p>
+            )}
+          </div>
+        )}
+
         {error && (
           <div className={`p-3 rounded-md ${
             error.includes('Please check your email')
@@ -159,16 +172,13 @@ export function AuthForm() {
           </div>
         </div>
 
-        <Button
-          type="button"
-          variant="outline"
-          className="w-full"
-          onClick={handleGoogleSignIn}
-          disabled={isLoading}
-        >
-          <Mail className="h-4 w-4 mr-2" />
-          Google
-        </Button>
+        <div className="mt-6">
+          <GoogleButton
+            onClick={handleGoogleSignIn}
+            disabled={isLoading}
+            className="w-full"
+          />
+        </div>
       </form>
     </div>
   );
