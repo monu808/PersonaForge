@@ -5,20 +5,21 @@ export async function uploadAvatar(file: File) {
   try {
     const fileExt = file.name.split('.').pop();
     const fileName = `${Math.random()}.${fileExt}`;
-    const filePath = `${fileName}`;
 
+    // Upload to the avatars bucket
     const { error: uploadError } = await supabase.storage
       .from('avatars')
-      .upload(filePath, file, {
+      .upload(fileName, file, {
         cacheControl: '3600',
         upsert: false
       });
 
     if (uploadError) throw uploadError;
 
+    // Get the public URL
     const { data: { publicUrl }, error: urlError } = await supabase.storage
       .from('avatars')
-      .getPublicUrl(filePath);
+      .getPublicUrl(fileName);
 
     if (urlError) throw urlError;
 
