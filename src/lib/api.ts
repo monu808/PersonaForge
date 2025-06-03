@@ -51,7 +51,7 @@ export async function getUserProfile(userId: string) {
     // If no profile exists, create a default profile object
     const userProfile = profile || {
       id: userId,
-      email: '', // Will be populated from auth.user
+      email: null, // Will be populated from auth.user
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
       role: 'user',
@@ -83,10 +83,11 @@ export async function updateProfile(userId: string, updates: Partial<User>) {
   try {
     const { data, error } = await supabase
       .from('users')
-      .update(updates)
-      .eq('id', userId)
+      .upsert({
+        id: userId,
+        ...updates
+      }, { onConflict: 'id' })
       .select()
-      .single();
 
     if (error) throw error;
     return { data, error: null };
