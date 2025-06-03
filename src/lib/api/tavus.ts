@@ -6,7 +6,7 @@ export interface TavusVideoRequest {
 }
 
 export interface TavusVideoResponse {
-  id: string;
+  id: string | null;
   status: string;
   url?: string;
   thumbnail_url?: string;
@@ -52,14 +52,16 @@ export async function getPersonaVideos(personaId: string): Promise<PersonaVideo[
 
 export async function generateTavusVideo(data: TavusVideoRequest): Promise<TavusVideoResponse> {
   try {
-    const { data: functionData, error } = await supabase.functions.invoke('create-video', {
+    const { data: functionData, error: invokeError } = await supabase.functions.invoke('create-video', {
       body: JSON.stringify(data),
     });
 
-    if (error) {
-      // Check if there's a specific error message from the Edge Function
-      const errorMessage = error.context?.data?.error || error.message;
-      throw new Error(errorMessage);
+    if (invokeError) {
+      throw new Error('Failed to invoke video generation function');
+    }
+
+    if (functionData.error) {
+      throw new Error(functionData.error);
     }
 
     // Store video metadata in persona_content table
@@ -93,9 +95,11 @@ export async function checkTavusVideoStatus(videoId: string): Promise<TavusVideo
     });
 
     if (error) {
-      // Check if there's a specific error message from the Edge Function
-      const errorMessage = error.context?.data?.error || error.message;
-      throw new Error(errorMessage);
+      throw new Error('Failed to check video status');
+    }
+
+    if (data.error) {
+      throw new Error(data.error);
     }
 
     return data;

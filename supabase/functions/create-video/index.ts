@@ -21,7 +21,20 @@ serve(async (req) => {
     const { personaId, script } = await req.json();
 
     if (!personaId || !script) {
-      throw new Error("Missing required parameters");
+      return new Response(
+        JSON.stringify({
+          id: null,
+          status: 'failed',
+          error: 'Missing required parameters',
+        }),
+        {
+          status: 200,
+          headers: {
+            ...corsHeaders,
+            "Content-Type": "application/json",
+          },
+        }
+      );
     }
 
     // Call Tavus API to generate video
@@ -37,24 +50,46 @@ serve(async (req) => {
       }),
     });
 
-    if (!response.ok) {
-      const error = await response.json();
-      throw new Error(error.message || "Failed to generate video");
-    }
-
     const data = await response.json();
 
-    return new Response(JSON.stringify(data), {
-      headers: {
-        ...corsHeaders,
-        "Content-Type": "application/json",
-      },
-    });
+    if (!response.ok) {
+      return new Response(
+        JSON.stringify({
+          id: null,
+          status: 'failed',
+          error: data.message || 'Failed to generate video',
+        }),
+        {
+          status: 200,
+          headers: {
+            ...corsHeaders,
+            "Content-Type": "application/json",
+          },
+        }
+      );
+    }
+
+    return new Response(
+      JSON.stringify({
+        id: data.id,
+        status: data.status,
+      }),
+      {
+        headers: {
+          ...corsHeaders,
+          "Content-Type": "application/json",
+        },
+      }
+    );
   } catch (error) {
     return new Response(
-      JSON.stringify({ error: error.message }),
+      JSON.stringify({
+        id: null,
+        status: 'failed',
+        error: error.message || 'An unexpected error occurred',
+      }),
       {
-        status: 400,
+        status: 200,
         headers: {
           ...corsHeaders,
           "Content-Type": "application/json",
