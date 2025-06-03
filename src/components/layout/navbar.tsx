@@ -5,7 +5,6 @@ import { signOut } from '@/lib/auth';
 import { getUserProfile } from '@/lib/api';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { NAV_ITEMS } from '@/lib/constants';
 import { useAuth } from '@/lib/context/auth-context';
 
 export default function Navbar() {
@@ -167,9 +166,9 @@ export default function Navbar() {
               onClick={toggleMobileMenu}
             >
               {isMobileMenuOpen ? (
-                <X className="h-6 w-6\" aria-hidden="true" />
+                <X className="h-6 w-6" aria-hidden="true" />
               ) : (
-                <Menu className="h-6 w-6\" aria-hidden="true" />
+                <Menu className="h-6 w-6" aria-hidden="true" />
               )}
             </button>
           </div>
