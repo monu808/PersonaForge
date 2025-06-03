@@ -5,6 +5,7 @@ import HomePage from './pages/home';
 import CreatePage from './pages/create';
 import DashboardPage from './pages/dashboard';
 import SettingsPage from './pages/settings';
+import ProfilePage from './pages/profile';
 import './index.css';
 
 function App() {
@@ -16,6 +17,7 @@ function App() {
           <Route path="create" element={<CreatePage />} />
           <Route path="dashboard" element={<DashboardPage />} />
           <Route path="settings" element={<SettingsPage />} />
+          <Route path="profile" element={<ProfilePage />} />
           {/* Additional routes will be added as needed */}
         </Route>
       </Routes>
