@@ -1,6 +1,5 @@
 import { createClient } from '@supabase/supabase-js';
 import { z } from 'zod';
-import jwt from 'jsonwebtoken';
 
 // Initialize Supabase client
 export const supabase = createClient(
@@ -68,17 +67,6 @@ export async function signIn({ email, password }: { email: string; password: str
     });
 
     if (error) throw error;
-
-    // Generate JWT token
-    const token = jwt.sign(
-      { userId: data.user.id },
-      import.meta.env.VITE_JWT_SECRET,
-      { expiresIn: '24h' }
-    );
-
-    // Store token securely
-    sessionStorage.setItem('auth_token', token);
-
     return { data, error: null };
   } catch (error) {
     return { data: null, error };
@@ -112,7 +100,6 @@ export async function signOut() {
     if (error) throw error;
     
     // Clear all auth-related storage
-    sessionStorage.removeItem('auth_token');
     localStorage.removeItem('supabase.auth.token');
     sessionStorage.clear();
     
