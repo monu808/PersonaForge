@@ -27,7 +27,13 @@ export function Navbar() {
     try {
       const { error } = await signOut();
       if (error) throw error;
-      navigate('/auth/login');
+      
+      // Close menus
+      setIsMobileMenuOpen(false);
+      setIsUserMenuOpen(false);
+      
+      // Navigate to login page
+      navigate('/auth/login', { replace: true });
     } catch (error) {
       console.error('Error signing out:', error);
     }
@@ -91,6 +97,7 @@ export function Navbar() {
                   <Link
                     to="/profile"
                     className="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                    onClick={() => setIsUserMenuOpen(false)}
                   >
                     <User className="mr-2 h-4 w-4" />
                     Your Profile
@@ -98,6 +105,7 @@ export function Navbar() {
                   <Link
                     to="/settings"
                     className="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                    onClick={() => setIsUserMenuOpen(false)}
                   >
                     <Settings className="mr-2 h-4 w-4" />
                     Settings

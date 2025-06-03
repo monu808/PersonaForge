@@ -83,8 +83,14 @@ export async function signOut() {
   try {
     const { error } = await supabase.auth.signOut();
     if (error) throw error;
+    
+    // Clear any local storage or session data
+    localStorage.removeItem('supabase.auth.token');
+    sessionStorage.clear();
+    
     return { error: null };
   } catch (error) {
+    console.error('Sign out error:', error);
     return { error };
   }
 }
