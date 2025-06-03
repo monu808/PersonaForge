@@ -44,9 +44,23 @@ export async function getUserProfile(userId: string) {
       .from('users')
       .select('*')
       .eq('id', userId)
-      .single();
+      .maybeSingle();
 
     if (profileError) throw profileError;
+
+    // If no profile exists, create a default profile object
+    const userProfile = profile || {
+      id: userId,
+      email: '', // Will be populated from auth.user
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+      role: 'user',
+      full_name: null,
+      avatar_url: null,
+      bio: null,
+      location: null,
+      social_links: {}
+    };
 
     // If no settings exist, use default values
     const defaultSettings = {
@@ -56,7 +70,7 @@ export async function getUserProfile(userId: string) {
     };
 
     return { 
-      data: { ...profile, settings: settings || defaultSettings }, 
+      data: { ...userProfile, settings: settings || defaultSettings }, 
       error: null 
     };
   } catch (error) {
