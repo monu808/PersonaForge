@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { BrainCircuitIcon, Menu, X, ChevronDown, LogOut, User, Settings, Bell } from 'lucide-react';
+import { BrainCircuitIcon, Menu, X, ChevronDown, LogOut, User, Settings, Bell, Film } from 'lucide-react';
 import { signOut } from '@/lib/auth';
 import { getUserProfile } from '@/lib/api';
 import { Button } from '@/components/ui/button';
@@ -117,9 +117,7 @@ export default function Navbar() {
                           {userProfile?.full_name?.split(' ').map(n => n[0]).join('') || '?'}
                         </AvatarFallback>
                       </Avatar>
-                      <span className="text-gray-700 font-medium hidden lg:block">
-                        {userProfile?.full_name}
-                      </span>
+                      <span className="text-gray-700 font-medium hidden lg:block">{userProfile?.full_name}</span>
                       <ChevronDown className="h-4 w-4 text-gray-500" />
                     </button>
                   </div>
@@ -133,6 +131,14 @@ export default function Navbar() {
                     >
                       <User className="mr-2 h-4 w-4" />
                       Your Profile
+                    </Link>
+                    <Link
+                      to="/dashboard/videos"
+                      className="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                      onClick={() => setIsUserMenuOpen(false)}
+                    >
+                      <Film className="mr-2 h-4 w-4" />
+                      Videos
                     </Link>
                     <Link
                       to="/settings"
@@ -198,6 +204,13 @@ export default function Navbar() {
               onClick={() => setIsMobileMenuOpen(false)}
             >
               Dashboard
+            </Link>
+            <Link
+              to="/dashboard/videos"
+              className="block px-3 py-2 rounded-md text-base font-medium text-gray-700 hover:text-primary-600 hover:bg-gray-50"
+              onClick={() => setIsMobileMenuOpen(false)}
+            >
+              Videos
             </Link>
             <Link
               to="/#features"

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Film, Plus, AlertCircle, Loader2 } from 'lucide-react';
+import { Film, Plus, AlertCircle, Loader2, RefreshCw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { TavusVideoGenerator } from '@/components/video/TavusVideoGenerator';
@@ -34,8 +34,8 @@ export default function VideosPage() {
 
   useEffect(() => {
     if (!selectedPersona) {
-      // You might want to fetch the user's personas first and select the first one
-      // For now we'll use a placeholder
+      // For the MVP, we'll just use a placeholder persona ID
+      // In a real implementation, you'd fetch the user's personas and select one
       setSelectedPersona("placeholder-persona-id");
     }
     
@@ -61,7 +61,7 @@ export default function VideosPage() {
   };
 
   const handleVideoGenerated = (videoId: string) => {
-    // Add the new video to the list
+    // Refresh the videos list after generating a new one
     loadVideos();
     
     // Hide the generator
@@ -112,6 +112,7 @@ export default function VideosPage() {
               <AlertCircle className="h-10 w-10 text-destructive mb-4" />
               <p className="text-center text-destructive">{error}</p>
               <Button variant="outline" className="mt-4" onClick={loadVideos}>
+                <RefreshCw className="h-4 w-4 mr-2" />
                 Try Again
               </Button>
             </CardContent>

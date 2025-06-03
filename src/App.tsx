@@ -6,9 +6,11 @@ import CreatePage from './pages/create';
 import DashboardPage from './pages/dashboard';
 import SettingsPage from './pages/settings';
 import ProfilePage from './pages/profile';
+import VideosPage from './pages/dashboard/videos';
 import SignInPage from './pages/auth/sign-in';
 import SignUpPage from './pages/auth/sign-up';
 import { AuthProvider } from './lib/context/auth-context';
+import { ProtectedRoute } from './components/auth/protected-route';
 import './index.css';
 
 function App() {
@@ -20,10 +22,31 @@ function App() {
           <Route path="/auth/sign-up" element={<SignUpPage />} />
           <Route path="/" element={<Layout />}>
             <Route index element={<HomePage />} />
-            <Route path="create" element={<CreatePage />} />
-            <Route path="dashboard" element={<DashboardPage />} />
-            <Route path="settings" element={<SettingsPage />} />
-            <Route path="profile" element={<ProfilePage />} />
+            <Route path="create" element={
+              <ProtectedRoute>
+                <CreatePage />
+              </ProtectedRoute>
+            } />
+            <Route path="dashboard" element={
+              <ProtectedRoute>
+                <DashboardPage />
+              </ProtectedRoute>
+            } />
+            <Route path="dashboard/videos" element={
+              <ProtectedRoute>
+                <VideosPage />
+              </ProtectedRoute>
+            } />
+            <Route path="settings" element={
+              <ProtectedRoute>
+                <SettingsPage />
+              </ProtectedRoute>
+            } />
+            <Route path="profile" element={
+              <ProtectedRoute>
+                <ProfilePage />
+              </ProtectedRoute>
+            } />
           </Route>
         </Routes>
       </Router>

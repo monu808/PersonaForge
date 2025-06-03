@@ -1,32 +1,4 @@
-// Tavus API integration client for the frontend
-
 import { supabase } from '@/lib/auth';
-
-/**
- * Creates a new Tavus replica for the user
- * @param name The name of the replica
- * @param description Optional description
- */
-export async function createTavusReplica(name: string, description?: string) {
-  try {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) throw new Error("Not authenticated");
-    
-    const { data, error } = await supabase.functions.invoke("tavus-api/create-replica", {
-      body: {
-        name,
-        description,
-        userId: user.id
-      }
-    });
-    
-    if (error) throw error;
-    return { data, error: null };
-  } catch (error) {
-    console.error("Error creating Tavus replica:", error);
-    return { data: null, error };
-  }
-}
 
 /**
  * Generates a video using the Tavus API
@@ -40,7 +12,7 @@ export async function generateTavusVideo({
 }: {
   script?: string;
   audioFile?: string;
-  personaId?: string;
+  personaId: string;
   metadata?: Record<string, any>;
 }) {
   try {
@@ -51,11 +23,12 @@ export async function generateTavusVideo({
       throw new Error("Either script or audioFile must be provided");
     }
     
-    const { data, error } = await supabase.functions.invoke("tavus-api/generate-video", {
+    const { data, error } = await supabase.functions.invoke("create-video", {
       body: {
         script,
         audio_file: audioFile,
         userId: user.id,
+        personaId,
         metadata: {
           ...metadata,
           persona_id: personaId
@@ -77,8 +50,8 @@ export async function generateTavusVideo({
  */
 export async function checkTavusVideoStatus(videoId: string) {
   try {
-    const { data, error } = await supabase.functions.invoke("tavus-api/video-status", {
-      body: { id: videoId }
+    const { data, error } = await supabase.functions.invoke("video-status", {
+      queryParams: { id: videoId }
     });
     
     if (error) throw error;
