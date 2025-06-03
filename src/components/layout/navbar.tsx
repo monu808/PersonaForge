@@ -111,7 +111,7 @@ export default function Navbar() {
                       {userProfile?.full_name?.split(' ').map(n => n[0]).join('') || '?'}
                     </AvatarFallback>
                   </Avatar>
-                  <span className="text-gray-700 font-medium hidden lg:block">{userName}</span>
+                  <span className="text-gray-700 font-medium hidden lg:block">{userProfile?.full_name}</span>
                   <ChevronDown className="h-4 w-4 text-gray-500" />
                 </button>
               </div>
