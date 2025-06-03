@@ -1,5 +1,5 @@
 import { supabase } from './auth';
-import { User } from './types';
+import { User, UserSettings } from './types';
 
 export async function uploadAvatar(file: File, userId: string) {
   try {
@@ -25,5 +25,47 @@ export async function uploadAvatar(file: File, userId: string) {
   } catch (error) {
     console.error('Avatar upload error:', error);
     return { url: null, error };
+  }
+}
+
+export async function getUserProfile(userId: string) {
+  try {
+    // Get user settings
+    const { data: settings, error: settingsError } = await supabase
+      .from('user_settings')
+      .select('*')
+      .eq('user_id', userId)
+      .single();
+
+    if (settingsError) throw settingsError;
+
+    // Get user profile
+    const { data: profile, error: profileError } = await supabase
+      .from('users')
+      .select('*')
+      .eq('id', userId)
+      .single();
+
+    if (profileError) throw profileError;
+
+    return { 
+      data: { ...profile, settings }, 
+      error: null 
+    };
+  } catch (error) {
+    console.error('Error fetching user profile:', error);
+    return { data: null, error };
+  }
+}
+
+export async function updateUserSettings(userId: string, settings: UserSettings) {
+  try {
+    const { error } = await supabase
+      .from('user_settings')
+      .upsert({ user_id: userId, ...settings });
+    return { error };
+  } catch (error) {
+    console.error('Error updating user settings:', error);
+    return { error };
   }
 }
