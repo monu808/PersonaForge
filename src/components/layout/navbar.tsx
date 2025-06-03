@@ -65,22 +65,28 @@ export default function Navbar() {
           {/* Desktop navigation */}
           <nav className="hidden md:flex items-center space-x-6">
             <Link
+              to="/"
+              className="text-gray-600 hover:text-primary-600 px-3 py-2 text-sm font-medium transition-colors rounded-md"
+            >
+              Home
+            </Link>
+            <Link
+              to="/dashboard"
+              className="text-gray-600 hover:text-primary-600 px-3 py-2 text-sm font-medium transition-colors rounded-md"
+            >
+              Dashboard
+            </Link>
+            <Link
               to="/#features"
               className="text-gray-600 hover:text-primary-600 px-3 py-2 text-sm font-medium transition-colors rounded-md"
             >
               Features
             </Link>
             <Link
-              to="/#templates"
+              to="/about"
               className="text-gray-600 hover:text-primary-600 px-3 py-2 text-sm font-medium transition-colors rounded-md"
             >
-              Templates
-            </Link>
-            <Link
-              to="/#pricing"
-              className="text-gray-600 hover:text-primary-600 px-3 py-2 text-sm font-medium transition-colors rounded-md"
-            >
-              Pricing
+              About
             </Link>
           </nav>
 
@@ -166,9 +172,9 @@ export default function Navbar() {
               onClick={toggleMobileMenu}
             >
               {isMobileMenuOpen ? (
-                <X className="h-6 w-6\" aria-hidden="true" />
+                <X className="h-6 w-6" aria-hidden="true" />
               ) : (
-                <Menu className="h-6 w-6\" aria-hidden="true" />
+                <Menu className="h-6 w-6" aria-hidden="true" />
               )}
             </button>
           </div>
@@ -180,6 +186,20 @@ export default function Navbar() {
         <div className="md:hidden border-t border-gray-200 bg-white">
           <div className="px-2 pt-2 pb-3 space-y-1 sm:px-3">
             <Link
+              to="/"
+              className="block px-3 py-2 rounded-md text-base font-medium text-gray-700 hover:text-primary-600 hover:bg-gray-50"
+              onClick={() => setIsMobileMenuOpen(false)}
+            >
+              Home
+            </Link>
+            <Link
+              to="/dashboard"
+              className="block px-3 py-2 rounded-md text-base font-medium text-gray-700 hover:text-primary-600 hover:bg-gray-50"
+              onClick={() => setIsMobileMenuOpen(false)}
+            >
+              Dashboard
+            </Link>
+            <Link
               to="/#features"
               className="block px-3 py-2 rounded-md text-base font-medium text-gray-700 hover:text-primary-600 hover:bg-gray-50"
               onClick={() => setIsMobileMenuOpen(false)}
@@ -187,18 +207,11 @@ export default function Navbar() {
               Features
             </Link>
             <Link
-              to="/#templates"
+              to="/about"
               className="block px-3 py-2 rounded-md text-base font-medium text-gray-700 hover:text-primary-600 hover:bg-gray-50"
               onClick={() => setIsMobileMenuOpen(false)}
             >
-              Templates
-            </Link>
-            <Link
-              to="/#pricing"
-              className="block px-3 py-2 rounded-md text-base font-medium text-gray-700 hover:text-primary-600 hover:bg-gray-50"
-              onClick={() => setIsMobileMenuOpen(false)}
-            >
-              Pricing
+              About
             </Link>
             
             {!user ? (
@@ -222,18 +235,18 @@ export default function Navbar() {
             ) : (
               <>
                 <Link
-                  to="/dashboard"
-                  className="block px-3 py-2 rounded-md text-base font-medium text-gray-700 hover:text-primary-600 hover:bg-gray-50"
-                  onClick={() => setIsMobileMenuOpen(false)}
-                >
-                  Dashboard
-                </Link>
-                <Link
                   to="/profile"
                   className="block px-3 py-2 rounded-md text-base font-medium text-gray-700 hover:text-primary-600 hover:bg-gray-50"
                   onClick={() => setIsMobileMenuOpen(false)}
                 >
                   Profile
+                </Link>
+                <Link
+                  to="/settings"
+                  className="block px-3 py-2 rounded-md text-base font-medium text-gray-700 hover:text-primary-600 hover:bg-gray-50"
+                  onClick={() => setIsMobileMenuOpen(false)}
+                >
+                  Settings
                 </Link>
                 <div className="border-t border-gray-200 my-2"></div>
                 <button
