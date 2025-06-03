@@ -52,18 +52,27 @@ export async function getPersonaVideos(personaId: string): Promise<PersonaVideo[
 
 export async function generateTavusVideo(data: TavusVideoRequest): Promise<TavusVideoResponse> {
   try {
+    // Get the current user's ID
+    const { data: userData, error: userError } = await supabase.auth.getUser();
+    if (userError) {
+      throw new Error('User not authenticated');
+    }
+
     const { data: functionData, error: invokeError } = await supabase.functions.invoke(
-      'tavus-api/create-video',
+      'tavus-api',
       {
         body: JSON.stringify({
-          personaId: data.personaId,
+          userId: userData.user.id,
+          metadata: {
+            personaId: data.personaId
+          },
           script: data.script,
         }),
       }
     );
 
     if (invokeError) {
-      throw new Error('Failed to invoke video generation function');
+      throw new Error(`Failed to invoke video generation function: ${invokeError.message}`);
     }
 
     if (functionData.error) {
