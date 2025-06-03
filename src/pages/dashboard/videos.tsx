@@ -1,12 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Film, Plus, AlertCircle, Loader2, RefreshCw } from 'lucide-react';
+import { Film, Plus, AlertCircle, Loader2, RefreshCw, UserCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { TavusVideoGenerator } from '@/components/video/TavusVideoGenerator';
 import { TavusVideoPlayer } from '@/components/video/TavusVideoPlayer';
 import { getPersonaVideos } from '@/lib/api/tavus';
+import { getPersonas } from '@/lib/api/personas';
 import { useAuth } from '@/lib/context/auth-context';
+import { useNavigate } from 'react-router-dom';
 
 interface Video {
   id: string;
@@ -26,21 +28,43 @@ interface Video {
 
 export default function VideosPage() {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const [videos, setVideos] = useState<Video[]>([]);
   const [selectedPersona, setSelectedPersona] = useState<string | null>(null);
   const [showGenerator, setShowGenerator] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [loadingPersonas, setLoadingPersonas] = useState(true);
 
   useEffect(() => {
-    if (!selectedPersona) {
-      // For the MVP, we'll just use a placeholder persona ID
-      // In a real implementation, you'd fetch the user's personas and select one
-      setSelectedPersona("placeholder-persona-id");
+    loadPersonas();
+  }, []);
+
+  useEffect(() => {
+    if (selectedPersona) {
+      loadVideos();
+    } else {
+      setLoading(false);
     }
-    
-    loadVideos();
   }, [selectedPersona]);
+
+  const loadPersonas = async () => {
+    try {
+      setLoadingPersonas(true);
+      const { data: personas, error } = await getPersonas();
+      
+      if (error) throw error;
+      
+      if (personas && personas.length > 0) {
+        setSelectedPersona(personas[0].id);
+      }
+    } catch (err) {
+      console.error("Error loading personas:", err);
+      setError("Failed to load personas. Please try again.");
+    } finally {
+      setLoadingPersonas(false);
+    }
+  };
 
   const loadVideos = async () => {
     if (!selectedPersona) return;
@@ -61,12 +85,38 @@ export default function VideosPage() {
   };
 
   const handleVideoGenerated = (videoId: string) => {
-    // Refresh the videos list after generating a new one
     loadVideos();
-    
-    // Hide the generator
     setShowGenerator(false);
   };
+
+  if (loadingPersonas) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
+  }
+
+  if (!selectedPersona) {
+    return (
+      <div className="min-h-screen bg-gray-50 py-8">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <Card>
+            <CardContent className="flex flex-col items-center justify-center py-12">
+              <UserCircle className="h-12 w-12 text-muted-foreground mb-4" />
+              <h2 className="text-xl font-semibold text-center mb-2">No Personas Found</h2>
+              <p className="text-center text-muted-foreground mb-6">
+                You need to create a persona before you can generate videos.
+              </p>
+              <Button onClick={() => navigate('/dashboard/personas/create')}>
+                Create Your First Persona
+              </Button>
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gray-50 py-8">
@@ -96,7 +146,7 @@ export default function VideosPage() {
             className="mb-8"
           >
             <TavusVideoGenerator 
-              personaId={selectedPersona!} 
+              personaId={selectedPersona} 
               onVideoGenerated={handleVideoGenerated}
             />
           </motion.div>
