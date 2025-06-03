@@ -53,7 +53,7 @@ export async function getPersonaVideos(personaId: string): Promise<PersonaVideo[
 export async function generateTavusVideo(data: TavusVideoRequest): Promise<TavusVideoResponse> {
   try {
     const { data: functionData, error: invokeError } = await supabase.functions.invoke(
-      'tavus-api/generate-video',
+      'tavus-api/create-video',
       {
         body: JSON.stringify({
           personaId: data.personaId,
