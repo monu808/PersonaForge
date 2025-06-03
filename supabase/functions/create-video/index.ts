@@ -1,7 +1,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 
 const TAVUS_API_KEY = Deno.env.get("TAVUS_API_KEY");
-const TAVUS_API_URL = "https://api.tavus.io/v1";
+const TAVUS_API_URL = "https://api.tavus.io/v2";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -46,7 +46,7 @@ serve(async (req) => {
       },
       body: JSON.stringify({
         script,
-        replicaId: personaId,
+        replica_id: personaId,
       }),
     });
 
