@@ -1,10 +1,10 @@
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from 'npm:@supabase/supabase-js@2.39.3';
 
 const TAVUS_API_KEY = Deno.env.get("TAVUS_API_KEY");
 const TAVUS_API_URL = "https://api.tavus.io/v2";
-
-// Log the API key status (but not the key itself) for debugging
-console.log("📣 TAVUS_API_KEY at runtime:", TAVUS_API_KEY ? "Present" : "Missing");
+const SUPABASE_URL = Deno.env.get("SUPABASE_URL");
+const SUPABASE_ANON_KEY = Deno.env.get("SUPABASE_ANON_KEY");
+const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -21,21 +21,37 @@ serve(async (req) => {
   }
 
   try {
-    // Check API key before processing request
-    if (!TAVUS_API_KEY) {
-      console.error("⛔️ TAVUS_API_KEY is not configured in environment!");
+    // Check required environment variables
+    if (!TAVUS_API_KEY || !SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
+      console.error("⛔️ Missing required environment variables!");
       return new Response(
         JSON.stringify({
           id: null,
           status: "failed",
-          error: "TAVUS_API_KEY is not configured. Please contact support.",
+          error: "Server configuration error. Please contact support.",
         }),
         {
           status: 500,
-          headers: {
-            ...corsHeaders,
-            "Content-Type": "application/json",
-          },
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        }
+      );
+    }
+
+    // Create Supabase admin client
+    const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
+
+    // Get user ID from auth header
+    const authHeader = req.headers.get('Authorization');
+    if (!authHeader) {
+      return new Response(
+        JSON.stringify({
+          id: null,
+          status: "failed",
+          error: "Missing authorization header",
+        }),
+        {
+          status: 401,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
         }
       );
     }
@@ -52,17 +68,35 @@ serve(async (req) => {
         }),
         {
           status: 400,
-          headers: {
-            ...corsHeaders,
-            "Content-Type": "application/json",
-          },
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
         }
       );
     }
 
-    console.log("🎥 Attempting to create Tavus video for persona:", personaId);
+    // Get user's Tavus replica ID from user_settings
+    const { data: userSettings, error: settingsError } = await supabase
+      .from('user_settings')
+      .select('tavus_replica_id')
+      .single();
 
-    // Call the Tavus API
+    if (settingsError || !userSettings?.tavus_replica_id) {
+      console.error("❌ Failed to get Tavus replica ID:", settingsError);
+      return new Response(
+        JSON.stringify({
+          id: null,
+          status: "failed",
+          error: "Tavus replica ID not found. Please set up your Tavus integration first.",
+        }),
+        {
+          status: 400,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        }
+      );
+    }
+
+    console.log("🎥 Creating Tavus video with replica ID:", userSettings.tavus_replica_id);
+
+    // Call the Tavus API with the correct replica_id
     const response = await fetch(`${TAVUS_API_URL}/videos`, {
       method: "POST",
       headers: {
@@ -71,7 +105,8 @@ serve(async (req) => {
       },
       body: JSON.stringify({
         script,
-        replica_id: personaId,
+        replica_id: userSettings.tavus_replica_id,
+        callback_url: `${SUPABASE_URL}/functions/v1/tavus-webhook`,
       }),
     });
 
@@ -87,12 +122,27 @@ serve(async (req) => {
         }),
         {
           status: 200,
-          headers: {
-            ...corsHeaders,
-            "Content-Type": "application/json",
-          },
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
         }
       );
+    }
+
+    // Create persona_content record
+    const { error: insertError } = await supabase
+      .from('persona_content')
+      .insert({
+        persona_id: personaId,
+        content_type: 'video',
+        content: script,
+        metadata: {
+          tavus_video_id: data.id,
+          status: data.status,
+        },
+      });
+
+    if (insertError) {
+      console.error("❌ Failed to create persona_content record:", insertError);
+      // Don't return error since video was created successfully
     }
 
     console.log("✅ Successfully created Tavus video:", data.id);
@@ -103,10 +153,7 @@ serve(async (req) => {
         status: data.status,
       }),
       {
-        headers: {
-          ...corsHeaders,
-          "Content-Type": "application/json",
-        },
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
       }
     );
   } catch (error) {
@@ -119,10 +166,7 @@ serve(async (req) => {
       }),
       {
         status: 500,
-        headers: {
-          ...corsHeaders,
-          "Content-Type": "application/json",
-        },
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
       }
     );
   }
