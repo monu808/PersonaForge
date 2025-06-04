@@ -52,24 +52,27 @@ export async function getPersonaVideos(personaId: string): Promise<PersonaVideo[
 
 export async function generateTavusVideo(data: TavusVideoRequest): Promise<TavusVideoResponse> {
   try {
-    // Get the current user's ID
     const { data: userData, error: userError } = await supabase.auth.getUser();
     if (userError) {
       throw new Error('User not authenticated');
     }
 
-    const { data: functionData, error: invokeError } = await supabase.functions.invoke(
+    const { data: functionData, error: invokeError } = await supabase.functions.invoke<TavusVideoResponse>(
       'create-video',
       {
-        body: JSON.stringify({
+        body: {
           personaId: data.personaId,
           script: data.script,
-        }),
+        },
       }
     );
 
     if (invokeError) {
-      throw new Error(`Failed to invoke video generation function: ${invokeError.message}`);
+      throw new Error(`Failed to generate video: ${invokeError.message}`);
+    }
+
+    if (!functionData) {
+      throw new Error('No response from video generation function');
     }
 
     if (functionData.error) {
@@ -85,7 +88,7 @@ export async function generateTavusVideo(data: TavusVideoRequest): Promise<Tavus
 
 export async function checkTavusVideoStatus(videoId: string): Promise<TavusVideoResponse> {
   try {
-    const { data, error } = await supabase.functions.invoke(
+    const { data, error } = await supabase.functions.invoke<TavusVideoResponse>(
       'video-status',
       {
         body: null,
@@ -95,6 +98,10 @@ export async function checkTavusVideoStatus(videoId: string): Promise<TavusVideo
 
     if (error) {
       throw new Error('Failed to check video status');
+    }
+
+    if (!data) {
+      throw new Error('No response from video status function');
     }
 
     if (data.error) {
