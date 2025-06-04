@@ -57,4 +57,7 @@ export interface Persona {
   updatedAt: Date;
   isPublished: boolean;
   usageCount: number;
+  replica_type?: string; // Added replica_type
+  nft_asset_id?: number; // Added nft_asset_id (using number for uint64)
+  creator_wallet_address?: string; // Added creator_wallet_address
 }
