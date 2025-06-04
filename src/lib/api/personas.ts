@@ -5,12 +5,14 @@ export async function createPersona({
   name,
   description,
   traits,
-  imageUrl
+  imageUrl,
+  replicaType
 }: {
   name: string;
   description: string;
   traits: any[];
   imageUrl?: string;
+  replicaType: string; // Added replicaType
 }) {
   try {
     const { data: { user } } = await supabase.auth.getUser();
@@ -26,6 +28,7 @@ export async function createPersona({
           traits,
           image_url: imageUrl
         },
+        replica_type: replicaType, // Added replica_type insertion
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString()
       })
