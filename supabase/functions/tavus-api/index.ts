@@ -66,7 +66,7 @@ serve(async (req) => {
     switch (endpoint) {
       case "create-replica":
         return handleCreateReplica(req, headers);
-      case "generate-video":
+      case "create-video":
         return handleGenerateVideo(req, headers);
       case "video-status":
         const videoId = url.searchParams.get("id");
