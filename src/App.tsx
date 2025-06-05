@@ -7,6 +7,8 @@ import DashboardPage from './pages/dashboard';
 import SettingsPage from './pages/settings';
 import ProfilePage from './pages/profile';
 import VideosPage from './pages/dashboard/videos';
+import AudioPage from './pages/dashboard/audio';
+import ElevenLabsFeaturesPage from './pages/elevenlabs-features';
 import SignInPage from './pages/auth/sign-in';
 import SignUpPage from './pages/auth/sign-up';
 import { AuthProvider } from './lib/context/auth-context';
@@ -31,10 +33,18 @@ function App() {
               <ProtectedRoute>
                 <DashboardPage />
               </ProtectedRoute>
-            } />
-            <Route path="dashboard/videos" element={
+            } />            <Route path="dashboard/videos" element={
               <ProtectedRoute>
                 <VideosPage />
+              </ProtectedRoute>
+            } />            <Route path="dashboard/audio" element={
+              <ProtectedRoute>
+                <AudioPage />
+              </ProtectedRoute>
+            } />
+            <Route path="elevenlabs" element={
+              <ProtectedRoute>
+                <ElevenLabsFeaturesPage />
               </ProtectedRoute>
             } />
             <Route path="settings" element={

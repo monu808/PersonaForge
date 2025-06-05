@@ -1,36 +1,37 @@
-import { HomeIcon, PlusCircleIcon, LayoutDashboardIcon, BrainCircuitIcon, Settings, UserIcon } from 'lucide-react';
+import * as React from 'react';
+import { HomeIcon, PlusCircleIcon, LayoutDashboardIcon, BrainCircuitIcon, SettingsIcon, UserIcon } from 'lucide-react';
 import { NavItem, PersonaTemplate, PersonaTrait } from './types';
 
 export const NAV_ITEMS: NavItem[] = [
   {
     title: 'Home',
     href: '/',
-    icon: HomeIcon,
+    icon: React.createElement(HomeIcon),
   },
   {
     title: 'Create',
     href: '/create',
-    icon: PlusCircleIcon,
+    icon: React.createElement(PlusCircleIcon),
   },
   {
     title: 'Dashboard',
     href: '/dashboard',
-    icon: LayoutDashboardIcon,
+    icon: React.createElement(LayoutDashboardIcon),
   },
   {
     title: 'My Personas',
     href: '/personas',
-    icon: BrainCircuitIcon,
+    icon: React.createElement(BrainCircuitIcon),
   },
   {
     title: 'Profile',
     href: '/profile',
-    icon: UserIcon,
+    icon: React.createElement(UserIcon),
   },
   {
     title: 'Settings',
     href: '/settings',
-    icon: Settings,
+    icon: React.createElement(SettingsIcon),
   },
 ];
 
@@ -75,8 +76,8 @@ export const PERSONA_TEMPLATES: PersonaTemplate[] = [
       VOICE_TRAITS[2], // Authoritative
       BEHAVIOR_TRAITS[1], // Responsive
       KNOWLEDGE_TRAITS[0], // Technical
-    ],
-    category: 'professional',
+    ],    category: 'professional',
+    type: 'professional',
     popularity: 92,
   },
   {
@@ -89,8 +90,8 @@ export const PERSONA_TEMPLATES: PersonaTemplate[] = [
       VOICE_TRAITS[3], // Gentle
       BEHAVIOR_TRAITS[0], // Proactive
       KNOWLEDGE_TRAITS[3], // Educational
-    ],
-    category: 'companion',
+    ],    category: 'companion',
+    type: 'personal',
     popularity: 88,
   },
   {
@@ -103,8 +104,8 @@ export const PERSONA_TEMPLATES: PersonaTemplate[] = [
       VOICE_TRAITS[1], // Energetic
       BEHAVIOR_TRAITS[2], // Detailed
       KNOWLEDGE_TRAITS[3], // Educational
-    ],
-    category: 'assistant',
+    ],    category: 'assistant',
+    type: 'creator',
     popularity: 85,
   },
   {
@@ -112,13 +113,13 @@ export const PERSONA_TEMPLATES: PersonaTemplate[] = [
     name: 'Medical Advisor',
     description: 'A knowledgeable guide for health and wellness information',
     imageUrl: 'https://images.pexels.com/photos/7089401/pexels-photo-7089401.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=1',
-    traits: [
-      PERSONALITY_TRAITS[3], // Analytical
+    traits: [      PERSONALITY_TRAITS[3], // Analytical
       VOICE_TRAITS[0], // Calm
       BEHAVIOR_TRAITS[2], // Detailed
       KNOWLEDGE_TRAITS[1], // Medical
     ],
     category: 'specialized',
+    type: 'professional',
     popularity: 79,
   },
   {
@@ -126,13 +127,13 @@ export const PERSONA_TEMPLATES: PersonaTemplate[] = [
     name: 'Financial Consultant',
     description: 'An expert in financial planning and investment strategies',
     imageUrl: 'https://images.pexels.com/photos/7235679/pexels-photo-7235679.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=1',
-    traits: [
-      PERSONALITY_TRAITS[3], // Analytical
+    traits: [      PERSONALITY_TRAITS[3], // Analytical
       VOICE_TRAITS[2], // Authoritative
       BEHAVIOR_TRAITS[2], // Detailed
       KNOWLEDGE_TRAITS[2], // Financial
     ],
     category: 'specialized',
+    type: 'professional',
     popularity: 76,
   },
   {
@@ -140,13 +141,13 @@ export const PERSONA_TEMPLATES: PersonaTemplate[] = [
     name: 'Friendly Guide',
     description: 'A warm and approachable companion for everyday assistance',
     imageUrl: 'https://images.pexels.com/photos/8435919/pexels-photo-8435919.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=1',
-    traits: [
-      PERSONALITY_TRAITS[0], // Friendly
+    traits: [      PERSONALITY_TRAITS[0], // Friendly
       VOICE_TRAITS[1], // Energetic
       BEHAVIOR_TRAITS[1], // Responsive
       KNOWLEDGE_TRAITS[3], // Educational
     ],
     category: 'companion',
+    type: 'personal',
     popularity: 90,
   },
 ];

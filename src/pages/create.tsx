@@ -54,15 +54,20 @@ export default function CreatePage() {
       setSelectedTraits([...selectedTraits, trait]);
     }
   };
-
   const handleCreatePersona = async () => {
     try {
       setIsCreating(true);
+      
+      // Set a default replicaType if none is selected or use the template's type
+      const replicaType = selectedTemplate && selectedTemplate !== 'scratch'
+        ? PERSONA_TEMPLATES.find(t => t.id === selectedTemplate)?.type || 'professional'
+        : 'professional';
 
-      const { data, error } = await createPersona({
+      const { error } = await createPersona({
         name: personaName,
         description: personaDescription,
         traits: selectedTraits,
+        replicaType: replicaType,
       });
 
       if (error) throw error;

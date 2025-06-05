@@ -26,6 +26,11 @@ interface Video {
   created_at: string;
 }
 
+interface TavusVideoGeneratorProps {
+  personaId: string;
+  onVideoGenerated?: (videoId: string) => void;
+}
+
 export default function VideosPage() {
   const { user } = useAuth();
   const navigate = useNavigate();
@@ -101,14 +106,13 @@ export default function VideosPage() {
     return (
       <div className="min-h-screen bg-gray-50 py-8">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <Card>
-            <CardContent className="flex flex-col items-center justify-center py-12">
+          <Card>            <CardContent className="flex flex-col items-center justify-center py-12">
               <UserCircle className="h-12 w-12 text-muted-foreground mb-4" />
               <h2 className="text-xl font-semibold text-center mb-2">No Personas Found</h2>
               <p className="text-center text-muted-foreground mb-6">
                 You need to create a persona before you can generate videos.
               </p>
-              <Button onClick={() => navigate('/dashboard/personas/create')}>
+              <Button onClick={() => navigate('/create')}>
                 Create Your First Persona
               </Button>
             </CardContent>

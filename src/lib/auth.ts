@@ -1,44 +1,17 @@
 import { createClient } from '@supabase/supabase-js';
 import { z } from 'zod';
 
-// Function to check if environment variables are valid
-const isValidUrl = (url: string) => {
-  try {
-    new URL(url);
-    return true;
-  } catch (e) {
-    return false;
-  }
-};
-
 // Initialize Supabase client with validation
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
-// Validate URL and key before creating client
-export const supabase = (() => {
-  if (!supabaseUrl || !supabaseAnonKey || !isValidUrl(supabaseUrl) || 
-      supabaseUrl === 'your_supabase_url' || supabaseAnonKey === 'your_supabase_anon_key') {
-    console.error('Invalid Supabase configuration. Please set valid VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY in your .env file.');
-    // Return a mock client that won't crash but will log errors on method calls
-    return {
-      auth: {
-        signUp: () => Promise.resolve({ data: null, error: new Error('Invalid Supabase configuration') }),
-        signInWithPassword: () => Promise.resolve({ data: null, error: new Error('Invalid Supabase configuration') }),
-        signInWithOAuth: () => Promise.resolve({ data: null, error: new Error('Invalid Supabase configuration') }),
-        signOut: () => Promise.resolve({ error: new Error('Invalid Supabase configuration') }),
-        verifyOTP: () => Promise.resolve({ data: null, error: new Error('Invalid Supabase configuration') }),
-        updateUser: () => Promise.resolve({ data: null, error: new Error('Invalid Supabase configuration') }),
-        resetPasswordForEmail: () => Promise.resolve({ data: null, error: new Error('Invalid Supabase configuration') }),
-        getSession: () => Promise.resolve({ data: { session: null }, error: new Error('Invalid Supabase configuration') }),
-        refreshSession: () => Promise.resolve({ data: { session: null }, error: new Error('Invalid Supabase configuration') })
-      }
-    };
-  }
-  
-  // Create actual client if config is valid
-  return createClient(supabaseUrl, supabaseAnonKey);
-})();
+// Validate configuration and create client
+if (!supabaseUrl || !supabaseAnonKey) {
+  console.error('Missing Supabase configuration. Please set VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY in your .env file.');
+  throw new Error('Invalid Supabase configuration');
+}
+
+export const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
 // Validation schemas
 export const passwordSchema = z
@@ -146,7 +119,7 @@ export async function signOut() {
 
 export async function verifyOTP(phone: string, otp: string) {
   try {
-    const { data, error } = await supabase.auth.verifyOTP({
+    const { data, error } = await supabase.auth.verifyOtp({
       phone,
       token: otp,
       type: 'sms',

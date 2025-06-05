@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { BrainCircuitIcon, Menu, X, ChevronDown, LogOut, User, Settings, Bell, Film } from 'lucide-react';
+import { BrainCircuitIcon, Menu, X, ChevronDown, LogOut, User, Settings, Bell, Film, Music } from 'lucide-react';
 import { signOut } from '@/lib/auth';
 import { getUserProfile } from '@/lib/api';
 import { Button } from '@/components/ui/button';
@@ -10,7 +10,12 @@ import { useAuth } from '@/lib/context/auth-context';
 export default function Navbar() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
-  const [userProfile, setUserProfile] = useState(null);
+  const [userProfile, setUserProfile] = useState<{
+    id: string;
+    full_name: string | null;
+    avatar_url: string | null;
+    email?: string;
+  } | null>(null);
   const navigate = useNavigate();
   const { user } = useAuth();
   
@@ -60,9 +65,7 @@ export default function Navbar() {
               <BrainCircuitIcon className="h-8 w-8 text-primary-600" />
               <span className="ml-2 text-xl font-bold text-gray-900">PersonaForge</span>
             </Link>
-          </div>
-
-          {/* Desktop navigation */}
+          </div>          {/* Desktop navigation */}
           <nav className="hidden md:flex items-center space-x-6">
             <Link
               to="/"
@@ -75,6 +78,12 @@ export default function Navbar() {
               className="text-gray-600 hover:text-primary-600 px-3 py-2 text-sm font-medium transition-colors rounded-md"
             >
               Dashboard
+            </Link>
+            <Link
+              to="/elevenlabs"
+              className="text-gray-600 hover:text-primary-600 px-3 py-2 text-sm font-medium transition-colors rounded-md"
+            >
+              ElevenLabs AI
             </Link>
             <Link
               to="/#features"
@@ -107,14 +116,13 @@ export default function Navbar() {
                       type="button"
                       className="flex items-center space-x-2 text-sm rounded-full focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2"
                       onClick={toggleUserMenu}
-                    >
-                      <Avatar>
+                    >                      <Avatar>
                         <AvatarImage 
-                          src={userProfile?.avatar_url} 
+                          src={userProfile?.avatar_url || undefined} 
                           alt={userProfile?.full_name || 'User'} 
                         />
                         <AvatarFallback className="bg-primary-100 text-primary-700">
-                          {userProfile?.full_name?.split(' ').map(n => n[0]).join('') || '?'}
+                          {userProfile?.full_name?.split(' ').map((n: string) => n[0]).join('') || '?'}
                         </AvatarFallback>
                       </Avatar>
                       <span className="text-gray-700 font-medium hidden lg:block">{userProfile?.full_name}</span>
@@ -131,14 +139,21 @@ export default function Navbar() {
                     >
                       <User className="mr-2 h-4 w-4" />
                       Your Profile
-                    </Link>
-                    <Link
+                    </Link>                    <Link
                       to="/dashboard/videos"
                       className="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
                       onClick={() => setIsUserMenuOpen(false)}
                     >
                       <Film className="mr-2 h-4 w-4" />
                       Videos
+                    </Link>
+                    <Link
+                      to="/dashboard/audio"
+                      className="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                      onClick={() => setIsUserMenuOpen(false)}
+                    >
+                      <Music className="mr-2 h-4 w-4" />
+                      Audio
                     </Link>
                     <Link
                       to="/settings"
@@ -197,13 +212,19 @@ export default function Navbar() {
               onClick={() => setIsMobileMenuOpen(false)}
             >
               Home
-            </Link>
-            <Link
+            </Link>            <Link
               to="/dashboard"
               className="block px-3 py-2 rounded-md text-base font-medium text-gray-700 hover:text-primary-600 hover:bg-gray-50"
               onClick={() => setIsMobileMenuOpen(false)}
             >
               Dashboard
+            </Link>
+            <Link
+              to="/elevenlabs"
+              className="block px-3 py-2 rounded-md text-base font-medium text-gray-700 hover:text-primary-600 hover:bg-gray-50"
+              onClick={() => setIsMobileMenuOpen(false)}
+            >
+              ElevenLabs AI
             </Link>
             <Link
               to="/dashboard/videos"

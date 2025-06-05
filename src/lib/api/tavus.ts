@@ -53,26 +53,43 @@ export interface PersonaVideo {
  */
 export async function createTavusReplica(data: TavusReplicaRequest): Promise<TavusReplicaResponse> {
   try {
-    const { data: functionData, error: invokeError } = await supabase.functions.invoke(
-      'create-replica',
-      {
-        body: JSON.stringify(data),
-      }
-    );
-
-    if (invokeError) {
-      throw new Error(`Failed to invoke replica creation function: ${invokeError.message}`);
+    const tavusApiKey = import.meta.env.VITE_TAVUS_API_KEY;
+    
+    if (!tavusApiKey) {
+      throw new Error('TAVUS_API_KEY not configured');
     }
 
-    if (functionData.error) {
-      throw new Error(functionData.error);
+    const response = await fetch('https://tavusapi.com/v2/replicas', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': tavusApiKey,
+      },
+      body: JSON.stringify({
+        train_video_url: data.train_video_url,
+        replica_name: data.replica_name,
+        callback_url: data.callback_url,
+      }),
+    });
+
+    const responseData = await response.json();
+
+    if (!response.ok) {
+      throw new Error(responseData.error || `HTTP error! status: ${response.status}`);
     }
 
-    return functionData;
+    return {
+      replica_id: responseData.replica_id,
+      status: responseData.status || 'training',
+      message: responseData.message,
+    };
   } catch (error) {
     console.error('Error creating Tavus replica:', error);
-    // Ensure the response shape matches TavusReplicaResponse even on error
-    return { replica_id: null, status: 'failed', error: error instanceof Error ? error.message : String(error) };
+    return { 
+      replica_id: null, 
+      status: 'failed', 
+      error: error instanceof Error ? error.message : String(error) 
+    };
   }
 }
 
@@ -112,31 +129,50 @@ export async function generateTavusVideo(data: TavusVideoRequest): Promise<Tavus
         throw new Error('Provide either script or audio_url, not both.');
     }
 
-    const { data: functionData, error: invokeError } = await supabase.functions.invoke(
-      'create-video',
-      {
-        body: JSON.stringify({
-          personaId: data.personaId,
-          script: data.script, // Pass script if provided
-          audio_url: data.audio_url, // Pass audio_url if provided
-        }),
-      }
-    );
-
-    if (invokeError) {
-      throw new Error(`Failed to invoke video generation function: ${invokeError.message}`);
+    const tavusApiKey = import.meta.env.VITE_TAVUS_API_KEY;
+    
+    if (!tavusApiKey) {
+      throw new Error('TAVUS_API_KEY not configured');
     }
 
-    // The edge function now returns a consistent structure, check for its internal error field
-    if (functionData.error) {
-      throw new Error(functionData.error);
+    const requestBody: any = {
+      replica_id: data.personaId,
+    };
+
+    if (data.script) {
+      requestBody.script = data.script;
+    } else if (data.audio_url) {
+      requestBody.audio_url = data.audio_url;
     }
 
-    return functionData;
+    const response = await fetch('https://tavusapi.com/v2/videos', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': tavusApiKey,
+      },
+      body: JSON.stringify(requestBody),
+    });
+
+    const responseData = await response.json();
+
+    if (!response.ok) {
+      throw new Error(responseData.error || `HTTP error! status: ${response.status}`);
+    }
+
+    return {
+      id: responseData.video_id,
+      status: responseData.status || 'generating',
+      url: responseData.download_url,
+      thumbnail_url: responseData.thumbnail_url,
+    };
   } catch (error) {
     console.error('Error generating Tavus video:', error);
-    // Ensure the response shape matches TavusVideoResponse even on error
-    return { id: null, status: 'failed', error: error instanceof Error ? error.message : String(error) };
+    return { 
+      id: null, 
+      status: 'failed', 
+      error: error instanceof Error ? error.message : String(error) 
+    };
   }
 }
 
@@ -145,26 +181,157 @@ export async function generateTavusVideo(data: TavusVideoRequest): Promise<Tavus
  */
 export async function checkTavusVideoStatus(videoId: string): Promise<TavusVideoResponse> {
   try {
-    const { data, error } = await supabase.functions.invoke(
-      'video-status', // Assuming this function exists and takes videoId
-      {
-        // Adjust body/query based on how 'video-status' function is implemented
-        query: { id: videoId },
-      }
-    );
-
-    if (error) {
-      throw new Error(`Failed to invoke video status function: ${error.message}`);
+    const tavusApiKey = import.meta.env.VITE_TAVUS_API_KEY;
+    
+    if (!tavusApiKey) {
+      throw new Error('TAVUS_API_KEY not configured');
     }
 
-    if (data.error) {
-      throw new Error(data.error);
+    const response = await fetch(`https://tavusapi.com/v2/videos/${videoId}`, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': tavusApiKey,
+      },
+    });
+
+    const responseData = await response.json();
+
+    if (!response.ok) {
+      throw new Error(responseData.error || `HTTP error! status: ${response.status}`);
     }
 
-    return data;
+    return {
+      id: responseData.video_id || videoId,
+      status: responseData.status,
+      url: responseData.download_url,
+      thumbnail_url: responseData.thumbnail_url,
+    };
   } catch (error) {
     console.error('Error checking Tavus video status:', error);
-    return { id: videoId, status: 'unknown', error: error instanceof Error ? error.message : String(error) };
+    return { 
+      id: videoId, 
+      status: 'unknown', 
+      error: error instanceof Error ? error.message : String(error) 
+    };
+  }
+}
+
+/**
+ * Create a video for a persona using Tavus API
+ */
+export async function createPersonaVideo(request: { 
+  personaId: string; 
+  script?: string; 
+  audioFile?: File;
+  audioUrl?: string;
+}) {
+  try {
+    // Get session to check authentication
+    const { data: sessionData } = await supabase.auth.getSession();
+    const user = sessionData?.session?.user;
+    if (!user) throw new Error('Not authenticated');
+
+    // Validate that at least one content source is provided
+    if (!request.script && !request.audioFile && !request.audioUrl) {
+      throw new Error('Must provide either script, audio file, or audio URL');
+    }
+
+    let audioUrl = request.audioUrl;
+    
+    // If audio file is provided, upload it to storage first
+    if (request.audioFile && !audioUrl) {
+      const fileName = `${crypto.randomUUID()}.${request.audioFile.name.split('.').pop()}`;
+      
+      const { error: uploadError } = await supabase.storage
+        .from('persona-content')
+        .upload(`audio/${fileName}`, request.audioFile, {
+          contentType: request.audioFile.type
+        });
+
+      if (uploadError) {
+        throw new Error(`Failed to upload audio file: ${uploadError.message}`);
+      }
+
+      // Get the public URL for the uploaded audio
+      const { data: urlData } = supabase.storage
+        .from('persona-content')
+        .getPublicUrl(`audio/${fileName}`);
+      
+      audioUrl = urlData.publicUrl;
+    }
+
+    // Call Tavus API directly
+    const tavusApiKey = import.meta.env.VITE_TAVUS_API_KEY;
+    
+    if (!tavusApiKey) {
+      throw new Error('TAVUS_API_KEY not configured');
+    }
+
+    const requestBody: any = {
+      replica_id: request.personaId,
+    };
+
+    if (request.script) {
+      requestBody.script = request.script;
+    } else if (audioUrl) {
+      requestBody.audio_url = audioUrl;
+    }
+
+    const response = await fetch('https://tavusapi.com/v2/videos', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': tavusApiKey,
+      },
+      body: JSON.stringify(requestBody),
+    });
+
+    const responseData = await response.json();
+
+    if (!response.ok) {
+      throw new Error(responseData.error || `HTTP error! status: ${response.status}`);
+    }
+
+    // Store the video metadata in the database
+    const { data: dbData, error: dbError } = await supabase
+      .from('persona_content')
+      .insert({
+        persona_id: request.personaId,
+        content_type: 'video',
+        content: request.script || 'Audio-based video',
+        metadata: {
+          tavus_video_id: responseData.video_id,
+          status: responseData.status || 'generating',
+          video_url: responseData.download_url,
+          thumbnail_url: responseData.thumbnail_url,
+          script: request.script,
+          audio_url: audioUrl,
+          user_id: user.id,
+        },
+        user_id: user.id,
+      })
+      .select()
+      .single();
+
+    if (dbError) {
+      console.error('Failed to store video metadata:', dbError);
+      // Don't throw here as the video was created successfully
+    }
+
+    return { 
+      data: {
+        id: responseData.video_id,
+        status: responseData.status || 'generating',
+        url: responseData.download_url,
+        thumbnail_url: responseData.thumbnail_url,
+        database_record: dbData,
+      }, 
+      error: null 
+    };
+  } catch (error) {
+    console.error('Error creating persona video:', error);
+    return { data: null, error: error instanceof Error ? error.message : 'Unknown error' };
   }
 }
 

@@ -43,6 +43,7 @@ export interface PersonaTemplate {
   imageUrl: string;
   traits: PersonaTrait[];
   category: 'professional' | 'companion' | 'assistant' | 'specialized';
+  type?: 'personal' | 'historical' | 'professional' | 'emergency' | 'creator';
   popularity: number;
 }
 
