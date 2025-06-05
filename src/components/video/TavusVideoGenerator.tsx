@@ -1,29 +1,31 @@
 import React from 'react';
-import { TavusVideoGenerator } from '@/components/video/TavusVideoGenerator_Updated'; // Use the correct path/name
 import { TavusVideoResponse } from '@/lib/api/tavus';
 
-function GenerateVideoPage({ currentPersonaId }: { currentPersonaId: string }) {
-  
+interface TavusVideoGeneratorProps {
+  personaId: string;
+  onSuccess: (data: TavusVideoResponse) => void;
+  onError: (error: Error) => void;
+}
+
+export function TavusVideoGenerator({ personaId, onSuccess, onError }: TavusVideoGeneratorProps) {
   const handleVideoSuccess = (data: TavusVideoResponse) => {
     console.log('Video generation started:', data);
-    // Update UI, maybe add video to a list with status 'processing'
-    // data contains { id, status }
+    onSuccess(data);
   };
 
   const handleVideoError = (error: Error) => {
     console.error('Video generation failed:', error);
-    // Show error message to user
+    onError(error);
   };
 
   return (
     <div>
       <h1>Generate Video</h1>
-      {currentPersonaId ? (
-        <TavusVideoGenerator 
-          personaId={currentPersonaId} // Pass the actual Tavus replica_id here
-          onSuccess={handleVideoSuccess} 
-          onError={handleVideoError} 
-        />
+      {personaId ? (
+        <div>
+          {/* Video generation form/controls would go here */}
+          <p>Video generation interface for persona: {personaId}</p>
+        </div>
       ) : (
         <p>Please select a Persona/Replica first.</p>
       )}
@@ -31,4 +33,4 @@ function GenerateVideoPage({ currentPersonaId }: { currentPersonaId: string }) {
   );
 }
 
-export default GenerateVideoPage;
+export default TavusVideoGenerator;
