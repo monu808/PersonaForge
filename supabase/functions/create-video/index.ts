@@ -18,14 +18,14 @@ serve(async (req) => {
   }
 
   try {
-    const { personaId, script } = await req.json();
+    const { personaId, script, audio_url } = await req.json();
 
-    if (!personaId || !script) {
+    if (!personaId || (!script && !audio_url)) {
       return new Response(
         JSON.stringify({
           id: null,
           status: 'failed',
-          error: 'Missing required parameters',
+          error: 'Missing required parameters: personaId and either script or audio_url',
         }),
         {
           status: 200,
@@ -45,8 +45,9 @@ serve(async (req) => {
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        script,
         replica_id: personaId,
+        ...(script && { script: script }), // Conditionally add script
+        ...(audio_url && { audio_url: audio_url }), // Conditionally add audio_url
       }),
     });
 
