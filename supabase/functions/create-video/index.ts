@@ -14,87 +14,60 @@ serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, {
       headers: corsHeaders,
+      status: 200,
     });
   }
 
   try {
+    console.log("📣 TAVUS_API_KEY at runtime:", TAVUS_API_KEY ? "Present" : "Missing");
+    
     const { personaId, script, audio_url } = await req.json();
 
     if (!personaId || (!script && !audio_url)) {
-      return new Response(
-        JSON.stringify({
-          id: null,
-          status: 'failed',
-          error: 'Missing required parameters: personaId and either script or audio_url',
-        }),
-        {
-          status: 200,
-          headers: {
-            ...corsHeaders,
-            "Content-Type": "application/json",
-          },
-        }
-      );
+      throw new Error('Missing required parameters: personaId and either script or audio_url');
     }
 
     // Call Tavus API to generate video
     const response = await fetch(`${TAVUS_API_URL}/videos`, {
       method: "POST",
       headers: {
-        "x-api-key": TAVUS_API_KEY,
+        "x-api-key": TAVUS_API_KEY || "",
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
         replica_id: personaId,
-        ...(script && { script: script }), // Conditionally add script
-        ...(audio_url && { audio_url: audio_url }), // Conditionally add audio_url
+        ...(script && { script }),
+        ...(audio_url && { audio_url }),
       }),
     });
 
     const data = await response.json();
 
     if (!response.ok) {
-      return new Response(
-        JSON.stringify({
-          id: null,
-          status: 'failed',
-          error: data.message || 'Failed to generate video',
-        }),
-        {
-          status: 200,
-          headers: {
-            ...corsHeaders,
-            "Content-Type": "application/json",
-          },
-        }
-      );
+      throw new Error(data.message || `HTTP error! status: ${response.status}`);
     }
 
     return new Response(
       JSON.stringify({
-        id: data.id,
-        status: data.status,
+        id: data.video_id,
+        status: data.status || 'pending',
       }),
       {
-        headers: {
-          ...corsHeaders,
-          "Content-Type": "application/json",
-        },
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
       }
     );
   } catch (error) {
+    console.error("Error generating video:", error);
+    
     return new Response(
       JSON.stringify({
         id: null,
         status: 'failed',
-        error: error.message || 'An unexpected error occurred',
+        error: error.message || 'Failed to generate video',
       }),
       {
-        status: 200,
-        headers: {
-          ...corsHeaders,
-          "Content-Type": "application/json",
-        },
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        status: 400,
       }
     );
   }
