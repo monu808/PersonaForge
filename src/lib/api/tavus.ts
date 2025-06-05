@@ -1,8 +1,24 @@
 import { supabase } from '../auth';
 
+// --- Replica Types ---
+export interface TavusReplicaRequest {
+  train_video_url: string;
+  replica_name?: string;
+  callback_url?: string;
+}
+
+export interface TavusReplicaResponse {
+  replica_id: string | null;
+  status: string;
+  message?: string;
+  error?: string;
+}
+
+// --- Video Types ---
 export interface TavusVideoRequest {
-  personaId: string;
-  script: string;
+  personaId: string; // This likely maps to replica_id in Tavus
+  script?: string;
+  audio_url?: string;
 }
 
 export interface TavusVideoResponse {
@@ -30,6 +46,39 @@ export interface PersonaVideo {
   created_at: string;
 }
 
+// --- API Functions ---
+
+/**
+ * Creates a new Tavus Replica.
+ */
+export async function createTavusReplica(data: TavusReplicaRequest): Promise<TavusReplicaResponse> {
+  try {
+    const { data: functionData, error: invokeError } = await supabase.functions.invoke(
+      'create-replica',
+      {
+        body: JSON.stringify(data),
+      }
+    );
+
+    if (invokeError) {
+      throw new Error(`Failed to invoke replica creation function: ${invokeError.message}`);
+    }
+
+    if (functionData.error) {
+      throw new Error(functionData.error);
+    }
+
+    return functionData;
+  } catch (error) {
+    console.error('Error creating Tavus replica:', error);
+    // Ensure the response shape matches TavusReplicaResponse even on error
+    return { replica_id: null, status: 'failed', error: error instanceof Error ? error.message : String(error) };
+  }
+}
+
+/**
+ * Fetches videos associated with a specific persona.
+ */
 export async function getPersonaVideos(personaId: string): Promise<PersonaVideo[]> {
   try {
     const { data, error } = await supabase
@@ -46,35 +95,39 @@ export async function getPersonaVideos(personaId: string): Promise<PersonaVideo[
     return data || [];
   } catch (error) {
     console.error('Error fetching persona videos:', error);
-    throw error;
+    throw error; // Re-throw to be handled by the caller
   }
 }
 
+/**
+ * Generates a Tavus video using either a script or an audio URL.
+ */
 export async function generateTavusVideo(data: TavusVideoRequest): Promise<TavusVideoResponse> {
   try {
-    const { data: userData, error: userError } = await supabase.auth.getUser();
-    if (userError) {
-      throw new Error('User not authenticated');
+    // Validate input: must have personaId and either script or audio_url
+    if (!data.personaId || (!data.script && !data.audio_url)) {
+      throw new Error('Missing required parameters: personaId and either script or audio_url');
+    }
+    if (data.script && data.audio_url) {
+        throw new Error('Provide either script or audio_url, not both.');
     }
 
-    const { data: functionData, error: invokeError } = await supabase.functions.invoke<TavusVideoResponse>(
+    const { data: functionData, error: invokeError } = await supabase.functions.invoke(
       'create-video',
       {
-        body: {
+        body: JSON.stringify({
           personaId: data.personaId,
-          script: data.script,
-        },
+          script: data.script, // Pass script if provided
+          audio_url: data.audio_url, // Pass audio_url if provided
+        }),
       }
     );
 
     if (invokeError) {
-      throw new Error(`Failed to generate video: ${invokeError.message}`);
+      throw new Error(`Failed to invoke video generation function: ${invokeError.message}`);
     }
 
-    if (!functionData) {
-      throw new Error('No response from video generation function');
-    }
-
+    // The edge function now returns a consistent structure, check for its internal error field
     if (functionData.error) {
       throw new Error(functionData.error);
     }
@@ -82,26 +135,26 @@ export async function generateTavusVideo(data: TavusVideoRequest): Promise<Tavus
     return functionData;
   } catch (error) {
     console.error('Error generating Tavus video:', error);
-    throw error;
+    // Ensure the response shape matches TavusVideoResponse even on error
+    return { id: null, status: 'failed', error: error instanceof Error ? error.message : String(error) };
   }
 }
 
+/**
+ * Checks the status of a Tavus video generation process.
+ */
 export async function checkTavusVideoStatus(videoId: string): Promise<TavusVideoResponse> {
   try {
-    const { data, error } = await supabase.functions.invoke<TavusVideoResponse>(
-      'video-status',
+    const { data, error } = await supabase.functions.invoke(
+      'video-status', // Assuming this function exists and takes videoId
       {
-        body: null,
+        // Adjust body/query based on how 'video-status' function is implemented
         query: { id: videoId },
       }
     );
 
     if (error) {
-      throw new Error('Failed to check video status');
-    }
-
-    if (!data) {
-      throw new Error('No response from video status function');
+      throw new Error(`Failed to invoke video status function: ${error.message}`);
     }
 
     if (data.error) {
@@ -111,6 +164,7 @@ export async function checkTavusVideoStatus(videoId: string): Promise<TavusVideo
     return data;
   } catch (error) {
     console.error('Error checking Tavus video status:', error);
-    throw error;
+    return { id: videoId, status: 'unknown', error: error instanceof Error ? error.message : String(error) };
   }
 }
+
