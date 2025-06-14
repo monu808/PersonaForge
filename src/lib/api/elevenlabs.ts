@@ -1,4 +1,5 @@
 import { supabase } from '../auth';
+import { STORAGE_BUCKETS } from '../constants';
 
 // --- Helper Functions ---
 function isValidUUID(uuid: string): boolean {
@@ -246,19 +247,20 @@ export async function createPersonaAudio(request: {
     
     // Store the audio in Supabase Storage
     const audioBlob = await fetch(voiceResponse.audioUrl).then(r => r.blob());    const fileName = `${audioId}.mp3`;
-    
-    const { error: uploadError } = await supabase.storage
-      .from('persona-content')
-      .upload(`audio/${fileName}`, audioBlob, {
+      const { error: uploadError } = await supabase.storage
+      .from(STORAGE_BUCKETS.AUDIO_FILES)
+      .upload(`elevenlabs-tts/${fileName}`, audioBlob, {
         contentType: 'audio/mpeg'
       });
 
     if (uploadError) {
       throw new Error(`Failed to upload audio: ${uploadError.message}`);
-    }    // Get the public URL for the uploaded audio
+    }
+
+    // Get the public URL for the uploaded audio
     const { data: urlData } = supabase.storage
-      .from('persona-content')
-      .getPublicUrl(`audio/${fileName}`);
+      .from(STORAGE_BUCKETS.AUDIO_FILES)
+      .getPublicUrl(`elevenlabs-tts/${fileName}`);
     
     const storageUrl = urlData.publicUrl;
     

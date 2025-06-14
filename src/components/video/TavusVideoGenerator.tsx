@@ -93,10 +93,16 @@ export function TavusVideoGenerator({ personaId, onVideoGenerated }: TavusVideoG
         onVideoGenerated(data.id);
       } else {
         throw new Error('No video ID returned from API');
-      }
-    } catch (err) {
+      }    } catch (err) {
       console.error('Error generating video:', err);
-      setError(err instanceof Error ? err.message : 'Failed to generate video');
+      const errorMessage = err instanceof Error ? err.message : 'Failed to generate video';
+      
+      // Check if it's a replica error and provide helpful guidance
+      if (errorMessage.includes('error state') || errorMessage.includes('not ready')) {
+        setError(`${errorMessage}\n\nTo fix this:\n1. Go to the Replicas tab\n2. Create a new replica for this persona\n3. Wait for it to complete training\n4. Try generating the video again`);
+      } else {
+        setError(errorMessage);
+      }
     } finally {
       setIsGenerating(false);
     }

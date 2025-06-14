@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { TavusVideoGenerator } from '@/components/video/TavusVideoGenerator';
 import { TavusVideoPlayer } from '@/components/video/TavusVideoPlayer';
+import FeatureGate from '@/components/subscription/feature-gate';
 import { getPersonaVideos } from '@/lib/api/tavus';
 import { getPersonas } from '@/lib/api/personas';
 import { useAuth } from '@/lib/context/auth-context';
@@ -131,28 +132,37 @@ export default function VideosPage() {
             <p className="mt-1 text-sm text-gray-600">
               Create and manage personalized videos for your personas
             </p>
+          </div>          <div className="mt-4 md:mt-0">
+            <FeatureGate 
+              feature="video_generation"
+              fallback={
+                <Button disabled>
+                  <Plus className="mr-2 h-4 w-4" />
+                  New Video (Premium)
+                </Button>
+              }
+            >
+              <Button onClick={() => setShowGenerator(!showGenerator)}>
+                {showGenerator ? "Cancel" : <>
+                  <Plus className="mr-2 h-4 w-4" />
+                  New Video
+                </>}
+              </Button>
+            </FeatureGate>
           </div>
-          <div className="mt-4 md:mt-0">
-            <Button onClick={() => setShowGenerator(!showGenerator)}>
-              {showGenerator ? "Cancel" : <>
-                <Plus className="mr-2 h-4 w-4" />
-                New Video
-              </>}
-            </Button>
-          </div>
-        </div>
-
-        {showGenerator && (
+        </div>        {showGenerator && (
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.3 }}
             className="mb-8"
           >
-            <TavusVideoGenerator 
-              personaId={selectedPersona} 
-              onVideoGenerated={handleVideoGenerated}
-            />
+            <FeatureGate feature="video_generation">
+              <TavusVideoGenerator 
+                personaId={selectedPersona} 
+                onVideoGenerated={handleVideoGenerated}
+              />
+            </FeatureGate>
           </motion.div>
         )}
 

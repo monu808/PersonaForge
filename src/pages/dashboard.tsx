@@ -11,6 +11,7 @@ import {
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import SubscriptionStatus from "@/components/subscription/subscription-status";
 
 // Mock data
 const stats = [
@@ -242,8 +243,9 @@ export default function DashboardPage() {
                   <Users className="mr-2 h-5 w-5" />
                   User Management
                 </Button>
-              </CardContent>
-            </Card>
+              </CardContent>            </Card>
+
+            <SubscriptionStatus />
 
             <Card className="mt-6">
               <CardHeader>

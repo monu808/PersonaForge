@@ -1,4 +1,3 @@
-import React from "react";
 import { motion } from "framer-motion";
 import { ArrowRight, Sparkles } from "lucide-react";
 import { Button } from "../ui/button";
@@ -54,9 +53,7 @@ export function HeroSection() {
                 <span className="block mt-2 bg-gradient-to-r from-primary-600 via-purple-500 to-secondary-600 bg-clip-text text-transparent">
                   AI Personas
                 </span>
-              </motion.h1>
-
-              <motion.p
+              </motion.h1>              <motion.p
                 className="mt-6 max-w-xl text-lg text-gray-600"
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
@@ -66,8 +63,44 @@ export function HeroSection() {
                 Perfect for businesses, creators, and professionals seeking custom AI solutions.
               </motion.p>
 
+              {/* Special Neurovia Highlight */}
               <motion.div
-                className="mt-10 flex flex-col sm:flex-row gap-4"
+                className="mt-8 p-4 rounded-xl border-2 bg-gradient-to-r from-[#48E59E]/10 to-[#FF7A45]/10"
+                style={{ borderColor: '#48E59E' }}
+                initial={{ opacity: 0, scale: 0.95 }}
+                animate={{ opacity: 1, scale: 1 }}
+                transition={{ duration: 0.6, delay: 0.25 }}
+              >
+                <div className="flex items-center gap-3 mb-3">
+                  <div 
+                    className="w-8 h-8 rounded-lg flex items-center justify-center"
+                    style={{ backgroundColor: '#48E59E' }}
+                  >
+                    <Sparkles className="h-5 w-5 text-black" />
+                  </div>
+                  <div>
+                    <h3 className="font-bold text-lg" style={{ color: '#121212' }}>
+                      Neurovia
+                    </h3>
+                    <p className="text-sm text-gray-600">
+                      Experience AI personas in live events, podcasts & neural interactions
+                    </p>
+                  </div>
+                </div>
+                <Button 
+                  size="lg" 
+                  className="w-full sm:w-auto text-black font-semibold hover:opacity-90 transition-all transform hover:scale-105"
+                  style={{ backgroundColor: '#48E59E' }}
+                  asChild
+                >
+                  <Link to="/neurovia">
+                    Enter Neurovia ⚡
+                  </Link>
+                </Button>
+              </motion.div>
+
+              <motion.div
+                className="mt-6 flex flex-col sm:flex-row gap-4"
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.5, delay: 0.3 }}

@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { BrainCircuitIcon, Menu, X, ChevronDown, LogOut, User, Settings, Bell, Film, Music } from 'lucide-react';
+import { BrainCircuitIcon, Menu, X, ChevronDown, LogOut, User, Settings, Bell, Film, Music, CreditCard } from 'lucide-react';
 import { signOut } from '@/lib/auth';
 import { getUserProfile } from '@/lib/api';
 import { Button } from '@/components/ui/button';
@@ -66,36 +66,38 @@ export default function Navbar() {
               <span className="ml-2 text-xl font-bold text-gray-900">PersonaForge</span>
             </Link>
           </div>          {/* Desktop navigation */}
-          <nav className="hidden md:flex items-center space-x-6">
-            <Link
+          <nav className="hidden md:flex items-center space-x-6">            <Link
               to="/"
               className="text-gray-600 hover:text-primary-600 px-3 py-2 text-sm font-medium transition-colors rounded-md"
             >
               Home
             </Link>
             <Link
-              to="/dashboard"
+              to="/coruscant"
               className="text-gray-600 hover:text-primary-600 px-3 py-2 text-sm font-medium transition-colors rounded-md"
             >
-              Dashboard
-            </Link>
-            <Link
+              Coruscant
+            </Link>            <Link
               to="/elevenlabs"
               className="text-gray-600 hover:text-primary-600 px-3 py-2 text-sm font-medium transition-colors rounded-md"
             >
               ElevenLabs AI
             </Link>
             <Link
-              to="/#features"
+              to="/tavus-features"
               className="text-gray-600 hover:text-primary-600 px-3 py-2 text-sm font-medium transition-colors rounded-md"
             >
-              Features
-            </Link>
-            <Link
+              Tavus AI            </Link>            <Link
               to="/about"
               className="text-gray-600 hover:text-primary-600 px-3 py-2 text-sm font-medium transition-colors rounded-md"
             >
               About
+            </Link>
+            <Link
+              to="/pricing"
+              className="text-gray-600 hover:text-primary-600 px-3 py-2 text-sm font-medium transition-colors rounded-md"
+            >
+              Pricing
             </Link>
           </nav>
 
@@ -154,14 +156,21 @@ export default function Navbar() {
                     >
                       <Music className="mr-2 h-4 w-4" />
                       Audio
-                    </Link>
-                    <Link
+                    </Link>                    <Link
                       to="/settings"
                       className="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
                       onClick={() => setIsUserMenuOpen(false)}
                     >
                       <Settings className="mr-2 h-4 w-4" />
                       Settings
+                    </Link>
+                    <Link
+                      to="/pricing"
+                      className="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                      onClick={() => setIsUserMenuOpen(false)}
+                    >
+                      <CreditCard className="mr-2 h-4 w-4" />
+                      Subscription
                     </Link>
                     <div className="border-t border-gray-200 my-1"></div>
                     <button
@@ -205,21 +214,20 @@ export default function Navbar() {
       {/* Mobile menu panel with smooth transition */}
       <div className={`md:hidden transform transition-transform duration-200 ease-in-out ${isMobileMenuOpen ? 'translate-y-0' : '-translate-y-full'}`}>
         <div className="md:hidden border-t border-gray-200 bg-white">
-          <div className="px-2 pt-2 pb-3 space-y-1 sm:px-3">
-            <Link
+          <div className="px-2 pt-2 pb-3 space-y-1 sm:px-3">            <Link
               to="/"
               className="block px-3 py-2 rounded-md text-base font-medium text-gray-700 hover:text-primary-600 hover:bg-gray-50"
               onClick={() => setIsMobileMenuOpen(false)}
             >
               Home
-            </Link>            <Link
-              to="/dashboard"
+            </Link>
+            <Link
+              to="/coruscant"
               className="block px-3 py-2 rounded-md text-base font-medium text-gray-700 hover:text-primary-600 hover:bg-gray-50"
               onClick={() => setIsMobileMenuOpen(false)}
             >
-              Dashboard
-            </Link>
-            <Link
+              Coruscant
+            </Link>            <Link
               to="/elevenlabs"
               className="block px-3 py-2 rounded-md text-base font-medium text-gray-700 hover:text-primary-600 hover:bg-gray-50"
               onClick={() => setIsMobileMenuOpen(false)}
@@ -227,25 +235,30 @@ export default function Navbar() {
               ElevenLabs AI
             </Link>
             <Link
+              to="/tavus-features"
+              className="block px-3 py-2 rounded-md text-base font-medium text-gray-700 hover:text-primary-600 hover:bg-gray-50"
+              onClick={() => setIsMobileMenuOpen(false)}
+            >
+              Tavus AI
+            </Link>
+            <Link
               to="/dashboard/videos"
               className="block px-3 py-2 rounded-md text-base font-medium text-gray-700 hover:text-primary-600 hover:bg-gray-50"
               onClick={() => setIsMobileMenuOpen(false)}
             >
-              Videos
-            </Link>
-            <Link
-              to="/#features"
-              className="block px-3 py-2 rounded-md text-base font-medium text-gray-700 hover:text-primary-600 hover:bg-gray-50"
-              onClick={() => setIsMobileMenuOpen(false)}
-            >
-              Features
-            </Link>
-            <Link
+              Videos            </Link>            <Link
               to="/about"
               className="block px-3 py-2 rounded-md text-base font-medium text-gray-700 hover:text-primary-600 hover:bg-gray-50"
               onClick={() => setIsMobileMenuOpen(false)}
             >
               About
+            </Link>
+            <Link
+              to="/pricing"
+              className="block px-3 py-2 rounded-md text-base font-medium text-gray-700 hover:text-primary-600 hover:bg-gray-50"
+              onClick={() => setIsMobileMenuOpen(false)}
+            >
+              Pricing
             </Link>
             
             {!user ? (

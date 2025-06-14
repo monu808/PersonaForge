@@ -1,4 +1,5 @@
 import { supabase } from '../auth';
+import { STORAGE_BUCKETS } from '../constants';
 
 // --- Replica Types ---
 export interface TavusReplicaRequest {
@@ -44,6 +45,60 @@ export interface PersonaVideo {
     error?: string;
   };
   created_at: string;
+}
+
+// --- Persona Types ---
+export interface TavusPersonaRequest {
+  persona_name: string;
+  replica_id?: string;
+  personality_layers?: {
+    llm?: {
+      model?: string;
+      system_prompt?: string;
+      context?: string;
+    };
+    tts?: {
+      voice_id?: string;
+      voice_settings?: {
+        speed?: string;
+        emotion?: string[];
+      };
+    };
+    stt?: {
+      participant_pause_sensitivity?: string;
+    };
+    perception?: {
+      enable_vision?: boolean;
+    };
+  };
+}
+
+export interface TavusPersonaResponse {
+  persona_id: string | null;
+  status: string;
+  message?: string;
+  error?: string;
+}
+
+// --- Conversation Types ---
+export interface TavusConversationRequest {
+  persona_id: string;
+  conversation_name?: string;
+  callback_url?: string;
+  properties?: {
+    max_duration?: number;
+    participant_left_timeout?: number;
+    participant_absent_timeout?: number;
+    enable_recording?: boolean;
+  };
+}
+
+export interface TavusConversationResponse {
+  conversation_id: string | null;
+  conversation_url?: string | null;
+  status: string;
+  message?: string;
+  error?: string;
 }
 
 // --- API Functions ---
@@ -177,6 +232,47 @@ export async function generateTavusVideo(data: TavusVideoRequest): Promise<Tavus
 }
 
 /**
+ * Checks the status of a Tavus replica.
+ */
+export async function checkTavusReplicaStatus(replicaId: string): Promise<{ replica_id: string; status: string; training_progress?: number; error?: string }> {
+  try {
+    const tavusApiKey = import.meta.env.VITE_TAVUS_API_KEY;
+    
+    if (!tavusApiKey) {
+      throw new Error('TAVUS_API_KEY not configured');
+    }
+
+    const response = await fetch(`https://tavusapi.com/v2/replicas/${replicaId}`, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': tavusApiKey,
+      },
+    });
+
+    const responseData = await response.json();
+
+    if (!response.ok) {
+      throw new Error(responseData.error || `HTTP error! status: ${response.status}`);
+    }
+
+    return {
+      replica_id: replicaId,
+      status: responseData.status,
+      training_progress: responseData.training_progress,
+      error: responseData.error,
+    };
+  } catch (error) {
+    console.error('Error checking Tavus replica status:', error);
+    return { 
+      replica_id: replicaId, 
+      status: 'unknown', 
+      error: error instanceof Error ? error.message : String(error) 
+    };
+  }
+}
+
+/**
  * Checks the status of a Tavus video generation process.
  */
 export async function checkTavusVideoStatus(videoId: string): Promise<TavusVideoResponse> {
@@ -237,15 +333,45 @@ export async function createPersonaVideo(request: {
       throw new Error('Must provide either script, audio file, or audio URL');
     }
 
+    // Get the persona to extract the replica ID
+    const { data: persona, error: personaError } = await supabase
+      .from('personas')
+      .select('*')
+      .eq('id', request.personaId)
+      .eq('user_id', user.id)
+      .single();
+
+    if (personaError || !persona) {
+      throw new Error('Persona not found or access denied');
+    }    // Extract the Tavus replica ID from the persona attributes
+    const replicaId = persona.attributes?.default_replica_id;
+    if (!replicaId) {
+      throw new Error('No Tavus replica ID found for this persona. Please create a replica first.');
+    }
+
+    // Check replica status before attempting to create video
+    const replicaStatus = await checkTavusReplicaStatus(replicaId);
+    
+    if (replicaStatus.status === 'error') {
+      throw new Error(`Replica ${replicaId} is in an error state and cannot be used. Please create a new replica. Error: ${replicaStatus.error || 'Unknown error'}`);
+    }
+    
+    if (replicaStatus.status === 'training') {
+      throw new Error(`Replica ${replicaId} is still training (${replicaStatus.training_progress || 0}% complete). Please wait for training to complete before generating videos.`);
+    }
+    
+    if (replicaStatus.status !== 'ready') {
+      throw new Error(`Replica ${replicaId} is not ready for video generation. Current status: ${replicaStatus.status}`);
+    }
+
     let audioUrl = request.audioUrl;
     
     // If audio file is provided, upload it to storage first
     if (request.audioFile && !audioUrl) {
       const fileName = `${crypto.randomUUID()}.${request.audioFile.name.split('.').pop()}`;
-      
-      const { error: uploadError } = await supabase.storage
-        .from('persona-content')
-        .upload(`audio/${fileName}`, request.audioFile, {
+        const { error: uploadError } = await supabase.storage
+        .from(STORAGE_BUCKETS.AUDIO_FILES)
+        .upload(`video-generation/${fileName}`, request.audioFile, {
           contentType: request.audioFile.type
         });
 
@@ -255,8 +381,8 @@ export async function createPersonaVideo(request: {
 
       // Get the public URL for the uploaded audio
       const { data: urlData } = supabase.storage
-        .from('persona-content')
-        .getPublicUrl(`audio/${fileName}`);
+        .from(STORAGE_BUCKETS.AUDIO_FILES)
+        .getPublicUrl(`video-generation/${fileName}`);
       
       audioUrl = urlData.publicUrl;
     }
@@ -266,10 +392,8 @@ export async function createPersonaVideo(request: {
     
     if (!tavusApiKey) {
       throw new Error('TAVUS_API_KEY not configured');
-    }
-
-    const requestBody: any = {
-      replica_id: request.personaId,
+    }    const requestBody: any = {
+      replica_id: replicaId,
     };
 
     if (request.script) {
@@ -332,6 +456,156 @@ export async function createPersonaVideo(request: {
   } catch (error) {
     console.error('Error creating persona video:', error);
     return { data: null, error: error instanceof Error ? error.message : 'Unknown error' };
+  }
+}
+
+/**
+ * Creates a new Tavus Persona with personality layers.
+ */
+export async function createTavusPersona(data: TavusPersonaRequest): Promise<TavusPersonaResponse> {
+  try {
+    const tavusApiKey = import.meta.env.VITE_TAVUS_API_KEY;
+    
+    if (!tavusApiKey) {
+      throw new Error('TAVUS_API_KEY not configured');
+    }
+
+    const requestBody: any = {
+      persona_name: data.persona_name
+    };
+
+    // Add replica_id if provided
+    if (data.replica_id) {
+      requestBody.replica_id = data.replica_id;
+    }
+
+    // Add personality layers if provided
+    if (data.personality_layers) {
+      requestBody.personality_layers = data.personality_layers;
+    }
+
+    const response = await fetch('https://tavusapi.com/v2/personas', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': tavusApiKey,
+      },
+      body: JSON.stringify(requestBody),
+    });
+
+    const responseData = await response.json();
+
+    if (!response.ok) {
+      throw new Error(responseData.error || `HTTP error! status: ${response.status}`);
+    }
+
+    return {
+      persona_id: responseData.persona_id,
+      status: responseData.status || 'ready',
+      message: responseData.message,
+    };
+  } catch (error) {
+    console.error('Error creating Tavus persona:', error);
+    return { 
+      persona_id: null, 
+      status: 'failed', 
+      error: error instanceof Error ? error.message : String(error) 
+    };
+  }
+}
+
+/**
+ * Creates a new Tavus Conversation for real-time video calls.
+ */
+export async function createTavusConversation(data: TavusConversationRequest): Promise<TavusConversationResponse> {
+  try {
+    const tavusApiKey = import.meta.env.VITE_TAVUS_API_KEY;
+    
+    if (!tavusApiKey) {
+      throw new Error('TAVUS_API_KEY not configured');
+    }
+
+    const requestBody: any = {
+      persona_id: data.persona_id
+    };
+
+    // Add optional fields
+    if (data.conversation_name) {
+      requestBody.conversation_name = data.conversation_name;
+    }
+    if (data.callback_url) {
+      requestBody.callback_url = data.callback_url;
+    }
+    if (data.properties) {
+      requestBody.properties = data.properties;
+    }
+
+    const response = await fetch('https://tavusapi.com/v2/conversations', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': tavusApiKey,
+      },
+      body: JSON.stringify(requestBody),
+    });
+
+    const responseData = await response.json();
+
+    if (!response.ok) {
+      throw new Error(responseData.error || `HTTP error! status: ${response.status}`);
+    }
+
+    return {
+      conversation_id: responseData.conversation_id,
+      conversation_url: responseData.conversation_url,
+      status: responseData.status || 'ready',
+      message: responseData.message,
+    };
+  } catch (error) {
+    console.error('Error creating Tavus conversation:', error);
+    return { 
+      conversation_id: null, 
+      conversation_url: null,
+      status: 'failed', 
+      error: error instanceof Error ? error.message : String(error) 
+    };
+  }
+}
+
+/**
+ * Lists all replicas associated with the API key.
+ */
+export async function listTavusReplicas(): Promise<{ replicas: any[]; error?: string }> {
+  try {
+    const tavusApiKey = import.meta.env.VITE_TAVUS_API_KEY;
+    
+    if (!tavusApiKey) {
+      throw new Error('TAVUS_API_KEY not configured');
+    }
+
+    const response = await fetch('https://tavusapi.com/v2/replicas', {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': tavusApiKey,
+      },
+    });
+
+    const responseData = await response.json();
+
+    if (!response.ok) {
+      throw new Error(responseData.error || `HTTP error! status: ${response.status}`);
+    }
+
+    return {
+      replicas: responseData.replicas || responseData || [],
+    };
+  } catch (error) {
+    console.error('Error listing Tavus replicas:', error);
+    return { 
+      replicas: [],
+      error: error instanceof Error ? error.message : String(error) 
+    };
   }
 }
 

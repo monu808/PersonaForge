@@ -5,6 +5,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Loader2, VolumeX, Volume2, AlertCircle } from 'lucide-react';
 import { createPersonaAudio, getAvailableVoices, ElevenLabsVoice } from '@/lib/api/elevenlabs';
+import { syncService } from '@/lib/api/sync-service';
 import { useEffect } from 'react';
 
 interface ElevenLabsAudioGeneratorProps {
@@ -88,9 +89,21 @@ export function ElevenLabsAudioGenerator({ personaId, onAudioGenerated }: Eleven
       });
       
       if (error) throw error;
-      
-      if (data?.metadata?.audio_url) {
+        if (data?.metadata?.audio_url) {
         setAudioUrl(data.metadata.audio_url);
+        
+        // Log activity for sync
+        await syncService.logActivity(
+          'audio_generated',
+          `Generated audio for persona: ${personaId}`,
+          {
+            persona_id: personaId,
+            voice_id: selectedVoice,
+            text_length: text.length,
+            audio_url: data.metadata.audio_url
+          }
+        );
+        
         if (onAudioGenerated) {
           onAudioGenerated(data.metadata.audio_url);
         }

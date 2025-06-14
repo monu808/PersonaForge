@@ -17,6 +17,7 @@ import {
 import { Link, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import FeatureGate from '@/components/subscription/feature-gate';
 import { createPersona } from '@/lib/api/personas';
 import { toast } from '@/components/ui/use-toast';
 import {
@@ -93,11 +94,23 @@ export default function CreatePage() {
 
   const nextStep = () => setStep(step + 1);
   const prevStep = () => setStep(step - 1);
-
   return (
     <div className="min-h-screen bg-gray-50 py-8">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="max-w-4xl mx-auto">
+        <FeatureGate 
+          feature="persona_creation"
+          fallback={
+            <div className="max-w-4xl mx-auto text-center py-12">
+              <BrainCircuitIcon className="h-16 w-16 text-gray-400 mx-auto mb-6" />
+              <h2 className="text-2xl font-bold text-gray-900 mb-4">Premium Feature</h2>
+              <p className="text-gray-600 mb-6">Persona creation is available for Premium subscribers and above.</p>
+              <Button asChild>
+                <Link to="/pricing">Upgrade to Premium</Link>
+              </Button>
+            </div>
+          }
+        >
+          <div className="max-w-4xl mx-auto">
           {/* Header */}
           <div className="text-center mb-10">
             <h1 className="text-3xl font-bold text-gray-900 sm:text-4xl">Create Your AI Persona</h1>
@@ -574,9 +587,9 @@ export default function CreatePage() {
                   </Button>
                 </div>
               </div>
-            )}
-          </motion.div>
+            )}          </motion.div>
         </div>
+        </FeatureGate>
       </div>
     </div>
   );
