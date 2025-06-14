@@ -13,6 +13,7 @@ import {
   Plus,
   Sparkles,
   UserIcon,
+  Video,
 } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
@@ -55,16 +56,16 @@ export default function CreatePage() {
       setSelectedTraits([...selectedTraits, trait]);
     }
   };
+
   const handleCreatePersona = async () => {
     try {
       setIsCreating(true);
       
-      // Set a default replicaType if none is selected or use the template's type
       const replicaType = selectedTemplate && selectedTemplate !== 'scratch'
         ? PERSONA_TEMPLATES.find(t => t.id === selectedTemplate)?.type || 'professional'
         : 'professional';
 
-      const { error } = await createPersona({
+      const { data, error } = await createPersona({
         name: personaName,
         description: personaDescription,
         traits: selectedTraits,
@@ -78,8 +79,8 @@ export default function CreatePage() {
         description: 'Your persona has been created successfully.',
       });
 
-      // Navigate to the dashboard
-      navigate('/dashboard');
+      // Navigate to the persona management page with the new persona ID
+      navigate(`/personas/${data.id}/manage`);
     } catch (err) {
       console.error('Error creating persona:', err);
       toast({
@@ -115,7 +116,7 @@ export default function CreatePage() {
           <div className="text-center mb-10">
             <h1 className="text-3xl font-bold text-gray-900 sm:text-4xl">Create Your AI Persona</h1>
             <p className="mt-4 text-lg text-gray-600">
-              Customize every aspect of your AI persona for a unique and personalized experience.
+              Design your AI persona for video generation and interactive conversations
             </p>
           </div>
 
@@ -556,14 +557,35 @@ export default function CreatePage() {
                         ))}
                       </div>
                     </div>
+
+                    {/* Tavus AI Features */}
+                    <div className="mt-6 border-t border-gray-200 pt-6">
+                      <h4 className="text-sm font-medium text-gray-700 mb-4">Available Features</h4>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div className="flex items-start space-x-3 p-4 bg-gray-50 rounded-lg">
+                          <Video className="h-5 w-5 text-primary-600 mt-1" />
+                          <div>
+                            <h5 className="text-sm font-medium text-gray-900">Video Generation</h5>
+                            <p className="text-xs text-gray-600">Create personalized videos with your AI persona</p>
+                          </div>
+                        </div>
+                        <div className="flex items-start space-x-3 p-4 bg-gray-50 rounded-lg">
+                          <MessageSquare className="h-5 w-5 text-primary-600 mt-1" />
+                          <div>
+                            <h5 className="text-sm font-medium text-gray-900">Interactive Chat</h5>
+                            <p className="text-xs text-gray-600">Have real-time conversations with your persona</p>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
                   </div>
 
                   <div className="bg-gray-50 px-6 py-4">
                     <div className="flex items-start">
                       <Info className="h-5 w-5 text-blue-500 mr-3 mt-0.5 flex-shrink-0" />
                       <p className="text-sm text-gray-600">
-                        Your persona will be created with the traits and settings you've selected. You
-                        can modify these settings later from your dashboard.
+                        After creation, you'll be taken to the persona management page where you can start generating videos
+                        and interacting with your AI persona.
                       </p>
                     </div>
                   </div>
