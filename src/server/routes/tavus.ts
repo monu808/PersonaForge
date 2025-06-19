@@ -1,5 +1,6 @@
 import express from 'express';
 import { createTavusReplica, createTavusPersona, createTavusConversation } from '../../lib/api/tavus';
+import { createLiveEvent } from '../../lib/api/events';
 import { authenticateUser } from '../middleware/auth';
 import { validateRateLimit } from '../middleware/rate-limit';
 
@@ -102,11 +103,11 @@ router.post('/personas', async (req, res) => {
  */
 router.post('/conversations', async (req, res) => {
   try {
-    const { persona_id, conversation_name, properties } = req.body;
+    const { replica_id, conversation_name, properties } = req.body;
 
-    if (!persona_id) {
+    if (!replica_id) {
       return res.status(400).json({
-        error: 'persona_id is required'
+        error: 'replica_id is required'
       });
     }
 
@@ -114,7 +115,7 @@ router.post('/conversations', async (req, res) => {
     const callbackUrl = `${process.env.BASE_URL}/api/tavus/webhook/conversation`;
 
     const result = await createTavusConversation({
-      persona_id,
+      replica_id,
       conversation_name,
       callback_url: callbackUrl,
       properties
@@ -125,6 +126,26 @@ router.post('/conversations', async (req, res) => {
         error: result.error,
         status: result.status
       });
+    }
+
+    // Create a live event for this conversation
+    try {
+      await createLiveEvent({
+        title: conversation_name || 'Live Conversation',
+        description: 'Live video conversation with AI persona',
+        host_replica_id: replica_id,
+        participants: [],
+        status: 'live',
+        start_time: new Date().toISOString(),
+        duration: 60, // Default duration
+        type: 'video_call',
+        visibility: 'public',
+        max_participants: 10,
+        room_url: result.conversation_url || undefined
+      });
+    } catch (eventError) {
+      console.error('Failed to create live event:', eventError);
+      // Don't fail the whole request if event creation fails
     }
 
     res.json({

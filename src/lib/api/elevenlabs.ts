@@ -101,7 +101,7 @@ const DEFAULT_SIMILARITY_BOOST = 0.75;
 /**
  * Generates speech using Eleven Labs API (Direct API call for debugging)
  */
-export async function generateSpeech(data: ElevenLabsVoiceRequest): Promise<ElevenLabsVoiceResponse> {
+export async function generateSpeech(data: ElevenLabsVoiceRequest, retries = 2): Promise<ElevenLabsVoiceResponse> {
   try {
     // Get session to check authentication
     const { data: sessionData } = await supabase.auth.getSession();
@@ -134,12 +134,31 @@ export async function generateSpeech(data: ElevenLabsVoiceRequest): Promise<Elev
 
     if (!response.ok) {
       const errorText = await response.text();
+      
+      // Handle rate limiting with retry
+      if (response.status === 429 && retries > 0) {
+        console.log(`Rate limited, retrying in 3 seconds... (${retries} retries left)`);
+        await new Promise(resolve => setTimeout(resolve, 3000));
+        return generateSpeech(data, retries - 1);
+      }
+      
       throw new Error(`ElevenLabs API error: ${response.status} - ${errorText}`);
-    }
-
-    // Convert response to blob and create URL
+    }    // Convert response to blob and create persistent data URL
     const audioBlob = await response.blob();
-    const audioUrl = URL.createObjectURL(audioBlob);
+    
+    // Convert blob to base64 data URL for persistence across page refreshes
+    const audioUrl = await new Promise<string>((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => {
+        if (typeof reader.result === 'string') {
+          resolve(reader.result);
+        } else {
+          reject(new Error('Failed to convert audio to data URL'));
+        }
+      };
+      reader.onerror = () => reject(new Error('Error reading audio blob'));
+      reader.readAsDataURL(audioBlob);
+    });
 
     return {
       audioUrl,

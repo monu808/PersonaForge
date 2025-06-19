@@ -281,11 +281,32 @@ export function getChatStats(messages: ChatMessage[]): {
       responseCount++;
     }
   }
-
   return {
     messageCount: messages.length,
     userMessages: userMessages.length,
     aiMessages: aiMessages.length,
     averageResponseTime: responseCount > 0 ? totalResponseTime / responseCount / 1000 : 0
   };
+}
+
+// Export a simple text generation function for podcast scripts
+export async function generateText(prompt: string): Promise<string> {
+  const apiKey = import.meta.env.VITE_GOOGLE_GEMINI_API_KEY;
+  if (!apiKey) {
+    throw new Error('Gemini API key not configured. Please set VITE_GOOGLE_GEMINI_API_KEY in your environment variables.');
+  }
+
+  try {
+    const genAI = new GoogleGenerativeAI(apiKey);
+    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+    
+    const result = await model.generateContent(prompt);
+    const response = await result.response;
+    const text = response.text();
+    
+    return text;
+  } catch (error) {
+    console.error('Error generating text with Gemini:', error);
+    throw new Error('Failed to generate text content');
+  }
 }

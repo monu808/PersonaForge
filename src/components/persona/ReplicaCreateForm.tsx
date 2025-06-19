@@ -250,10 +250,18 @@ export function ReplicaCreateForm({ onSuccess, onError }: ReplicaCreateFormProps
       setCurrentStep('consent');
 
       onSuccess?.(replicaData);
-      
-    } catch (err) {
+        } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'An unexpected error occurred';
-      setError(errorMessage);
+      
+      // Check for specific consent phrase error
+      if (errorMessage.includes('consent phrase does not match') || 
+          errorMessage.includes('consent phrase') ||
+          errorMessage.includes('training file')) {
+        setError(`⚠️ Consent Phrase Issue: ${errorMessage}\n\nPlease ensure your video includes the exact phrase: "${TAVUS_VIDEO_REQUIREMENTS.REQUIRED_CONSENT_PHRASE}"\n\nThe phrase must be spoken clearly and audibly in your training video.`);
+      } else {
+        setError(errorMessage);
+      }
+      
       onError?.(err instanceof Error ? err : new Error(errorMessage));
       console.error('Error creating replica:', err);
     } finally {
@@ -318,17 +326,37 @@ export function ReplicaCreateForm({ onSuccess, onError }: ReplicaCreateFormProps
           {renderStepIndicator()}
           
           {/* Step 1: Consent Video */}
-          {currentStep === 'consent' && (
-            <div className="space-y-6">
-              <div className="text-center">
-                <h3 className="text-lg font-semibold mb-2">Step 1: Consent Video</h3>
-                <p className="text-sm text-gray-600 mb-4">
-                  Record or upload a consent video to authorize Tavus platform to create your replica.
-                  This helps ensure you have given explicit permission for AI replica creation.
-                </p>
-              </div>
+          {currentStep === 'consent' && (              <div className="space-y-6">
+                <div className="text-center">
+                  <h3 className="text-lg font-semibold mb-2">Step 1: Consent Video</h3>
+                  <p className="text-sm text-gray-600 mb-4">
+                    Record or upload a consent video to authorize Tavus platform to create your replica.
+                    This helps ensure you have given explicit permission for AI replica creation.
+                  </p>
+                </div>
 
-              <div className="space-y-4">
+                {/* Consent Phrase Requirements */}
+                <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-6">
+                  <div className="flex items-start gap-3">
+                    <Info className="h-5 w-5 text-yellow-600 mt-0.5 flex-shrink-0" />
+                    <div>
+                      <h4 className="font-semibold text-yellow-800 mb-2">Required Consent Phrase</h4>
+                      <div className="bg-white border border-yellow-300 rounded-md p-3 mb-3">
+                        <p className="text-sm font-mono text-gray-800 text-center">
+                          "{TAVUS_VIDEO_REQUIREMENTS.REQUIRED_CONSENT_PHRASE}"
+                        </p>
+                      </div>
+                      <ul className="text-xs text-yellow-700 space-y-1">
+                        <li>• You must say this exact phrase clearly in your video</li>
+                        <li>• Speak it at the beginning or end of your video</li>
+                        <li>• Ensure clear pronunciation and audible speech</li>
+                        <li>• The person speaking must be the same person in the video</li>
+                      </ul>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="space-y-4">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2 text-sm font-medium text-gray-700">
                     <Video className="h-4 w-4" />
@@ -506,9 +534,7 @@ export function ReplicaCreateForm({ onSuccess, onError }: ReplicaCreateFormProps
                       </p>
                     </div>
                   </div>
-                )}
-
-                {/* Video Requirements */}
+                )}                {/* Video Requirements */}
                 <div className="bg-blue-50 border border-blue-200 p-4 rounded-lg">
                   <h4 className="text-sm font-medium text-blue-900 mb-3 flex items-center gap-2">
                     <Info className="h-4 w-4" />
@@ -516,6 +542,17 @@ export function ReplicaCreateForm({ onSuccess, onError }: ReplicaCreateFormProps
                   </h4>
                   
                   <div className="space-y-3">
+                    {/* Consent Phrase Reminder */}
+                    <div className="bg-yellow-100 border border-yellow-300 rounded-md p-3">
+                      <h5 className="text-xs font-semibold text-yellow-800 mb-1">🔊 IMPORTANT - Required Consent Phrase:</h5>
+                      <p className="text-xs font-mono text-gray-800 bg-white border rounded px-2 py-1 mb-1">
+                        "{TAVUS_VIDEO_REQUIREMENTS.REQUIRED_CONSENT_PHRASE}"
+                      </p>
+                      <p className="text-xs text-yellow-700">
+                        This exact phrase must be spoken clearly in your training video!
+                      </p>
+                    </div>
+                    
                     <div>
                       <h5 className="text-xs font-medium text-blue-800 mb-1">Duration & Quality:</h5>
                       <ul className="text-xs text-blue-700 space-y-0.5 ml-2">

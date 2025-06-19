@@ -15,6 +15,7 @@ import {
 } from 'lucide-react';
 import { toast } from '@/components/ui/use-toast';
 import { syncService } from '@/lib/api/sync-service';
+import { getPersonas } from '@/lib/api/personas';
 
 // Import persona interaction components
 import PersonaDashboard from '@/components/coruscant/PersonaDashboard';
@@ -32,25 +33,35 @@ export default function Coruscant() {
 
   useEffect(() => {
     loadUserReplicas();
-  }, []);
-  const loadUserReplicas = async () => {
+  }, []);  const loadUserReplicas = async () => {
     try {
       setLoading(true);
-      // TODO: Implement API call to get user's replicas
-      // const replicas = await getUserReplicas();
-      // setUserReplicas(replicas);
       
-      // Mock data for now
-      const mockReplicas = [
-        { id: '1', name: 'John Doe', status: 'active', type: 'personal' },
-        { id: '2', name: 'Business Avatar', status: 'active', type: 'business' }
-      ];
-      setUserReplicas(mockReplicas);
+      // Load actual personas from the database
+      const { data, error } = await getPersonas();
+      
+      if (error) {
+        throw error;
+      }
+      
+      // Convert personas to the format expected by Coruscant components
+      const replicas = (data || []).map((persona: any) => ({
+        id: persona.id,
+        name: persona.name,
+        status: 'active', // All personas are considered active
+        type: persona.replica_type || 'personal',
+        created_at: persona.created_at,
+        thumbnail_url: persona.attributes?.image_url,
+        description: persona.description,
+        attributes: persona.attributes
+      }));
+      
+      setUserReplicas(replicas);
 
       // Sync action with Neurovia
       await syncService.syncCoruscantAction('replicas_loaded', {
-        replica_count: mockReplicas.length,
-        replicas: mockReplicas
+        replica_count: replicas.length,
+        replicas: replicas
       });
     } catch (error) {
       toast({
@@ -163,9 +174,7 @@ export default function Coruscant() {
               </CardContent>
             </Card>
           </div>
-        </div>
-
-        {/* Main Tabs */}
+        </div>        {/* Main Tabs */}
         <Tabs defaultValue="dashboard" value={activeTab} onValueChange={setActiveTab} className="space-y-6">
           <TabsList className="grid grid-cols-3 lg:grid-cols-6 w-full">
             <TabsTrigger value="dashboard" className="flex items-center gap-2">
@@ -182,7 +191,7 @@ export default function Coruscant() {
             </TabsTrigger>
             <TabsTrigger value="events" className="flex items-center gap-2">
               <Mic className="h-4 w-4" />
-              <span className="hidden sm:inline">Events</span>
+              <span className="hidden sm:inline">Host Events</span>
             </TabsTrigger>
             <TabsTrigger value="schedule" className="flex items-center gap-2">
               <Calendar className="h-4 w-4" />
@@ -196,40 +205,35 @@ export default function Coruscant() {
             <PersonaDashboard 
               replicas={userReplicas} 
               loading={loading} 
-              onReload={loadUserReplicas}
-              onAction={handleCoruscantAction}
+              onReload={loadUserReplicas}              onPersonaDeleted={loadUserReplicas}
             />
           </TabsContent>
 
           <TabsContent value="emergency">
-            <EmergencyPersonas onAction={handleCoruscantAction} />
+            <EmergencyPersonas />
           </TabsContent>
 
           <TabsContent value="singer">
             <PersonaSinger 
               replicas={userReplicas} 
-              onAction={handleCoruscantAction}
             />
           </TabsContent>
 
           <TabsContent value="events">
             <EventHost 
               replicas={userReplicas} 
-              onAction={handleCoruscantAction}
             />
           </TabsContent>
 
           <TabsContent value="schedule">
             <PersonaScheduler 
               replicas={userReplicas} 
-              onAction={handleCoruscantAction}
             />
           </TabsContent>
 
           <TabsContent value="monetize">
             <PersonaMonetization 
               replicas={userReplicas} 
-              onAction={handleCoruscantAction}
             />
           </TabsContent>
         </Tabs>

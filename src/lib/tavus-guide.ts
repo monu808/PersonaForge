@@ -18,8 +18,18 @@ export const TAVUS_VIDEO_REQUIREMENTS = {
   SUPPORTED_FORMATS: ['mp4', 'mov', 'webm'],
   MAX_FILE_SIZE_MB: 500,
   
+  // Consent requirements
+  REQUIRED_CONSENT_PHRASE: "I hereby give my consent to create an AI replica of myself.",
+  CONSENT_REQUIREMENTS: [
+    'Must say the exact consent phrase clearly',
+    'Consent phrase should be spoken at the beginning or end of video',
+    'Clear pronunciation and audible speech required',
+    'Must be the same person giving consent as appears in video'
+  ],
+  
   // Content requirements
   REQUIRED_ELEMENTS: [
+    'Required consent phrase spoken clearly',
     'Clear face visibility (front-facing)',
     'Good lighting (well-lit face)',
     'Stable camera (minimal movement)',
@@ -40,6 +50,14 @@ export const TAVUS_VIDEO_REQUIREMENTS = {
 
 // Common error codes and solutions
 export const TAVUS_ERROR_SOLUTIONS = {
+  'CONSENT_PHRASE_MISMATCH': {
+    message: 'Your consent phrase does not match our requirements',
+    solution: `You must clearly say: "${TAVUS_VIDEO_REQUIREMENTS.REQUIRED_CONSENT_PHRASE}" in your training video`
+  },
+  'CONSENT_PHRASE_NOT_DETECTED': {
+    message: 'Required consent phrase not detected in training video',
+    solution: `Ensure you clearly say: "${TAVUS_VIDEO_REQUIREMENTS.REQUIRED_CONSENT_PHRASE}" with clear audio`
+  },
   'INSUFFICIENT_FACE_TIME': {
     message: 'Not enough clear face visibility in the training video',
     solution: 'Ensure the person is facing the camera for at least 80% of the video duration'
@@ -79,6 +97,11 @@ export const REPLICA_STATUS_GUIDE = {
   },
   'ready': {
     description: 'Replica is ready for video generation',
+    timeEstimate: 'N/A',
+    action: 'Can generate videos immediately'
+  },
+  'completed': {
+    description: 'Replica training is completed and ready for video generation',
     timeEstimate: 'N/A',
     action: 'Can generate videos immediately'
   },

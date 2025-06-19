@@ -1,4 +1,3 @@
-import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -14,23 +13,27 @@ import {
   Trash
 } from 'lucide-react';
 import { toast } from '@/components/ui/use-toast';
+import { deletePersona as deletePersonaAPI } from '@/lib/api/personas';
 
 interface Replica {
   id: string;
   name: string;
   status: 'active' | 'training' | 'error';
-  type: 'personal' | 'business';
+  type: string; // Changed from 'personal' | 'business' to string to match persona replica_type
   created_at?: string;
   thumbnail_url?: string;
+  description?: string;
+  attributes?: any;
 }
 
 interface PersonaDashboardProps {
   replicas: Replica[];
   loading: boolean;
   onReload: () => void;
+  onPersonaDeleted?: () => void; // Add callback for when persona is deleted
 }
 
-export default function PersonaDashboard({ replicas, loading, onReload }: PersonaDashboardProps) {
+export default function PersonaDashboard({ replicas, loading, onReload, onPersonaDeleted }: PersonaDashboardProps) {
   const launchPersona = (replica: Replica) => {
     toast({
       title: "Launching Persona",
@@ -45,15 +48,34 @@ export default function PersonaDashboard({ replicas, loading, onReload }: Person
       description: `Opening editor for ${replica.name}`,
     });
     // TODO: Implement persona editing
-  };
+  };  const deletePersona = async (replica: Replica) => {
+    try {
+      const { error } = await deletePersonaAPI(replica.id);
+      
+      if (error) {
+        throw error;
+      }
 
-  const deletePersona = (replica: Replica) => {
-    toast({
-      title: "Delete Persona",
-      description: `Are you sure you want to delete ${replica.name}?`,
-      variant: "destructive"
-    });
-    // TODO: Implement persona deletion with confirmation
+      toast({
+        title: "Persona Deleted",
+        description: `${replica.name} has been permanently deleted.`,
+      });
+
+      // Reload the data to reflect changes
+      onReload();
+      
+      // Call the callback if provided
+      if (onPersonaDeleted) {
+        onPersonaDeleted();
+      }
+    } catch (error) {
+      console.error('Error deleting persona:', error);
+      toast({
+        title: "Error",
+        description: "Failed to delete persona. Please try again.",
+        variant: "destructive"
+      });
+    }
   };
 
   if (loading) {

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -9,20 +9,40 @@ import {
   CreditCard, 
   Star,
   Trophy,
-  Gift,
   Users,
   TrendingUp,
   Calendar,
   Video,
-  Music,
   MessageCircle,
   Shield,
   Plus,
   Settings,
   Eye,
-  Download
+  Download,
+  BarChart3,
+  Upload,
+  Link,
+  File,
+  X,
+  CheckCircle,
+  FileText,
+  Image,
+  Mic
 } from 'lucide-react';
 import { toast } from '@/components/ui/use-toast';
+import { 
+  createPersonaService, 
+  getPersonaServices, 
+  updatePersonaService,
+  deletePersonaService 
+} from '@/lib/api/persona-services';
+import { 
+  connectWallet, 
+  getConnectedWallet, 
+  isWalletConnected 
+} from '@/lib/api/algorand';
+import type { PersonaService } from '@/lib/api/algorand';
+import EnhancedAnalyticsDashboard from '@/components/analytics/EnhancedAnalyticsDashboard';
 
 interface Replica {
   id: string;
@@ -31,21 +51,7 @@ interface Replica {
   type: string;
 }
 
-interface PersonaMonetizationProps {
-  replicas: Replica[];
-}
-
-interface MonetizationProduct {
-  id: string;
-  title: string;
-  description: string;
-  type: 'subscription' | 'nft' | 'event' | 'content' | 'service';
-  price: number;
-  currency: 'USD' | 'ALGO';
-  replica_id: string;
-  status: 'active' | 'draft' | 'sold_out';
-  sales_count: number;
-  revenue: number;
+interface PersonaMonetizationProps {  replicas: Replica[];
 }
 
 interface RevenueStats {
@@ -57,22 +63,19 @@ interface RevenueStats {
 }
 
 const productTypes = [
-  { value: 'subscription', label: 'Monthly Subscription', icon: <CreditCard className="h-4 w-4" /> },
-  { value: 'nft', label: 'NFT Collectible', icon: <Star className="h-4 w-4" /> },
-  { value: 'event', label: 'Premium Event', icon: <Calendar className="h-4 w-4" /> },
-  { value: 'content', label: 'Premium Content', icon: <Video className="h-4 w-4" /> },
-  { value: 'service', label: 'Personal Service', icon: <MessageCircle className="h-4 w-4" /> }
-];
-
-const currencyOptions = [
-  { value: 'USD', label: 'USD ($)', symbol: '$' },
-  { value: 'ALGO', label: 'Algorand (ALGO)', symbol: '◎' }
+  { value: 'consultation', label: 'AI Consultation', icon: <MessageCircle className="h-4 w-4" /> },
+  { value: 'content_creation', label: 'Content Creation', icon: <Video className="h-4 w-4" /> },
+  { value: 'voice_message', label: 'Voice Message', icon: <Mic className="h-4 w-4" /> },
+  { value: 'video_call', label: 'Video Call', icon: <Calendar className="h-4 w-4" /> },
+  { value: 'custom', label: 'Custom Service', icon: <Settings className="h-4 w-4" /> }
 ];
 
 export default function PersonaMonetization({ replicas }: PersonaMonetizationProps) {
-  const [products, setProducts] = useState<MonetizationProduct[]>([]);
+  const [services, setServices] = useState<PersonaService[]>([]);
+  const [loading, setLoading] = useState(true);
   const [showCreateForm, setShowCreateForm] = useState(false);
-  const [selectedProduct, setSelectedProduct] = useState<MonetizationProduct | null>(null);
+  const [showAnalytics, setShowAnalytics] = useState(false);
+  const [walletAddress, setWalletAddress] = useState<string | null>(null);
   
   // Mock revenue stats
   const [revenueStats] = useState<RevenueStats>({
@@ -82,19 +85,77 @@ export default function PersonaMonetization({ replicas }: PersonaMonetizationPro
     nft_sales: 0,
     event_attendees: 0
   });
-
   // Form state
   const [formData, setFormData] = useState({
-    title: '',
+    service_name: '',
     description: '',
-    type: '',
-    price: 0,
-    currency: 'USD',
-    replicaId: ''
+    service_type: '',
+    price_algo: 1,
+    price_usd: 0.25,
+    duration_minutes: 30,
+    persona_id: '',
+    delivery_content: '',
+    delivery_url: '',
+    file_type: '',
+    auto_delivery: false,
+    uploaded_file: null as File | null
   });
+  
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const [fileUploadProgress, setFileUploadProgress] = useState<number | null>(null);
+  const [fileUploadError, setFileUploadError] = useState<string | null>(null);
 
-  const createProduct = () => {
-    if (!formData.title || !formData.type || !formData.replicaId || formData.price <= 0) {
+  useEffect(() => {
+    loadServices();
+    initializeWallet();
+  }, [replicas]);
+
+  const loadServices = async () => {
+    try {
+      setLoading(true);
+      const allServices: PersonaService[] = [];
+      
+      // Load services for all user's personas
+      for (const replica of replicas) {
+        const { data } = await getPersonaServices(replica.id);
+        if (data) {
+          allServices.push(...data);
+        }
+      }
+      
+      setServices(allServices);
+    } catch (error) {
+      console.error('Error loading services:', error);
+      toast({
+        title: "Error",
+        description: "Failed to load services",
+        variant: "destructive"
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const initializeWallet = async () => {
+    const connected = isWalletConnected();
+    if (connected) {
+      const address = getConnectedWallet();
+      setWalletAddress(address);
+    } else {
+      // Try to connect wallet automatically
+      try {
+        const result = await connectWallet();
+        if (result.success && result.address) {
+          setWalletAddress(result.address);
+        }
+      } catch (error) {
+        console.error('Auto-connect wallet failed:', error);
+      }
+    }
+  };
+
+  const createProduct = async () => {
+    if (!formData.service_name || !formData.service_type || !formData.persona_id || formData.price_algo <= 0) {
       toast({
         title: "Missing Information",
         description: "Please fill in all required fields.",
@@ -103,61 +164,231 @@ export default function PersonaMonetization({ replicas }: PersonaMonetizationPro
       return;
     }
 
-    const newProduct: MonetizationProduct = {
-      id: Date.now().toString(),
-      title: formData.title,
-      description: formData.description,
-      type: formData.type as any,
-      price: formData.price,
-      currency: formData.currency as any,
-      replica_id: formData.replicaId,
-      status: 'active',
-      sales_count: 0,
-      revenue: 0
-    };
+    if (!walletAddress) {
+      toast({
+        title: "Wallet Required",
+        description: "Please connect your Algorand wallet to create services.",
+        variant: "destructive"
+      });
+      return;
+    }
 
-    setProducts(prev => [newProduct, ...prev]);
-    setShowCreateForm(false);
-    
-    // Reset form
-    setFormData({
-      title: '',
-      description: '',
-      type: '',
-      price: 0,
-      currency: 'USD',
-      replicaId: ''
-    });
+    try {      const serviceData = {
+        persona_id: formData.persona_id,
+        service_name: formData.service_name,
+        description: formData.description,
+        price_algo: formData.price_algo,
+        price_usd: formData.price_usd,
+        service_type: formData.service_type as 'consultation' | 'content_creation' | 'voice_message' | 'video_call' | 'custom',
+        duration_minutes: formData.duration_minutes,
+        creator_wallet: walletAddress,
+        is_active: true,
+        delivery_content: formData.delivery_content || undefined,
+        delivery_url: formData.delivery_url || undefined,
+        file_type: formData.file_type || undefined,
+        auto_delivery: formData.auto_delivery || undefined
+      };
 
-    toast({
-      title: "Product Created",
-      description: `"${formData.title}" is now available for purchase.`,
-    });
+      const { data, error } = await createPersonaService(serviceData);
+      
+      if (error) {
+        toast({
+          title: "Error",
+          description: error,
+          variant: "destructive"
+        });
+        return;
+      }      if (data) {
+        setServices(prev => [data, ...prev]);
+        setShowCreateForm(false);
+          // Reset form
+        setFormData({
+          service_name: '',
+          description: '',
+          service_type: '',
+          price_algo: 1,
+          price_usd: 0.25,
+          duration_minutes: 30,
+          persona_id: '',
+          delivery_content: '',
+          delivery_url: '',
+          file_type: '',
+          auto_delivery: false,
+          uploaded_file: null
+        });
+        setFileUploadProgress(null);
+        setFileUploadError(null);
+          toast({
+          title: "Service Created",
+          description: `"${formData.service_name}" is now available for purchase in the Services marketplace.`,
+        });
+        
+        // Emit event to notify other components
+        window.dispatchEvent(new CustomEvent('personaServiceCreated', {
+          detail: { service: data, persona_id: formData.persona_id }
+        }));
+      }
+    } catch (error) {
+      console.error('Error creating service:', error);
+      toast({
+        title: "Error",
+        description: "Failed to create service",
+        variant: "destructive"
+      });
+    }
   };
 
-  const toggleProductStatus = (productId: string) => {
-    setProducts(prev => prev.map(product => 
-      product.id === productId 
-        ? { ...product, status: product.status === 'active' ? 'draft' : 'active' }
-        : product
-    ));
+  const toggleServiceStatus = async (serviceId: string) => {
+    try {
+      const service = services.find(s => s.id === serviceId);
+      if (!service) return;
+
+      const { error } = await updatePersonaService(serviceId, {
+        is_active: !service.is_active
+      });
+
+      if (error) {
+        toast({
+          title: "Error",
+          description: error,
+          variant: "destructive"
+        });
+        return;
+      }
+
+      setServices(prev => prev.map(service => 
+        service.id === serviceId 
+          ? { ...service, is_active: !service.is_active }
+          : service
+      ));
+        toast({
+        title: "Status Updated",
+        description: `Service ${service.is_active ? 'deactivated' : 'activated'} successfully`,
+      });
+      
+      // Emit event to notify other components
+      window.dispatchEvent(new CustomEvent('personaServiceUpdated', {
+        detail: { serviceId, is_active: !service.is_active }
+      }));
+    } catch (error) {
+      console.error('Error updating service status:', error);
+      toast({
+        title: "Error",
+        description: "Failed to update service status",
+        variant: "destructive"
+      });
+    }
   };
 
-  const viewAnalytics = (product: MonetizationProduct) => {
-    setSelectedProduct(product);
+  const deleteService = async (serviceId: string) => {
+    try {
+      const { error } = await deletePersonaService(serviceId);
+      
+      if (error) {
+        toast({
+          title: "Error",
+          description: error,
+          variant: "destructive"
+        });
+        return;
+      }
+
+      setServices(prev => prev.filter(s => s.id !== serviceId));
+        toast({
+        title: "Service Deleted",
+        description: "Service has been deleted successfully",
+      });
+      
+      // Emit event to notify other components
+      window.dispatchEvent(new CustomEvent('personaServiceDeleted', {
+        detail: { serviceId }
+      }));
+    } catch (error) {
+      console.error('Error deleting service:', error);
+      toast({
+        title: "Error",
+        description: "Failed to delete service",
+        variant: "destructive"
+      });
+    }
+  };
+  const viewAnalytics = (service: PersonaService) => {
     toast({
       title: "Analytics",
-      description: `Viewing analytics for "${product.title}"`,
+      description: `Viewing analytics for "${service.service_name}"`,
     });
   };
+  // File upload handling functions
+  const handleFileUpload = (file: File) => {
+    // Basic file validation
+    const maxSize = 50 * 1024 * 1024; // 50MB
+    const allowedTypes = {
+      video: ['video/mp4', 'video/mov', 'video/avi', 'video/quicktime'],
+      image: ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp'],
+      voice_message: ['audio/mp3', 'audio/wav', 'audio/m4a', 'audio/ogg']
+    };    if (file.size > maxSize) {
+      setFileUploadError('File size must be less than 50MB');
+      return;
+    }
 
-  const getCurrencySymbol = (currency: string) => {
-    return currencyOptions.find(c => c.value === currency)?.symbol || '$';
+    // Validate file types based on service type and content type
+    if (formData.service_type === 'content_creation') {
+      if (formData.file_type === 'video' && !allowedTypes.video.includes(file.type)) {
+        setFileUploadError('Please upload a valid video file (MP4, MOV, AVI)');
+        return;
+      }
+      if (formData.file_type === 'image' && !allowedTypes.image.includes(file.type)) {
+        setFileUploadError('Please upload a valid image file (JPEG, PNG, GIF, WebP)');
+        return;
+      }
+    }
+
+    if (formData.service_type === 'voice_message' && !allowedTypes.voice_message.includes(file.type)) {
+      setFileUploadError('Please upload a valid audio file (MP3, WAV, M4A, OGG)');
+      return;
+    }
+
+    setFileUploadError(null);
+    setFormData(prev => ({ 
+      ...prev, 
+      uploaded_file: file,
+      // Keep the existing file_type for content_creation or set it to file.type for voice_message
+      file_type: formData.service_type === 'content_creation' ? prev.file_type : file.type,
+      delivery_url: '' // Clear URL if file is uploaded
+    }));
+
+    // Simulate upload progress (in real app, this would be actual upload)
+    setFileUploadProgress(0);
+    const interval = setInterval(() => {
+      setFileUploadProgress(prev => {
+        if (prev === null || prev >= 100) {
+          clearInterval(interval);
+          return 100;
+        }
+        return prev + 10;
+      });
+    }, 100);
+  };
+
+  const removeFile = () => {
+    setFormData(prev => ({ ...prev, uploaded_file: null, file_type: '' }));
+    setFileUploadProgress(null);
+    setFileUploadError(null);
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+  };
+
+  const formatFileSize = (bytes: number) => {
+    if (bytes === 0) return '0 Bytes';
+    const k = 1024;
+    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
   };
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
+    <div className="space-y-6">      {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 bg-gradient-to-r from-green-500 to-emerald-500 rounded-lg flex items-center justify-center">
@@ -172,10 +403,18 @@ export default function PersonaMonetization({ replicas }: PersonaMonetizationPro
             </p>
           </div>
         </div>
-        <Button onClick={() => setShowCreateForm(true)}>
-          <Plus className="h-4 w-4 mr-2" />
-          Create Product
-        </Button>
+        <div className="flex gap-2">
+          {walletAddress && (
+            <Button variant="outline" onClick={() => setShowAnalytics(true)}>
+              <BarChart3 className="h-4 w-4 mr-2" />
+              Analytics
+            </Button>
+          )}
+          <Button onClick={() => setShowCreateForm(true)}>
+            <Plus className="h-4 w-4 mr-2" />
+            Create Product
+          </Button>
+        </div>
       </div>
 
       {/* Revenue Stats */}
@@ -227,8 +466,7 @@ export default function PersonaMonetization({ replicas }: PersonaMonetizationPro
             </div>
           </CardContent>
         </Card>
-        
-        <Card>
+          <Card>
           <CardContent className="p-4">
             <div className="flex items-center gap-2">
               <Calendar className="h-5 w-5 text-orange-500" />
@@ -241,31 +479,31 @@ export default function PersonaMonetization({ replicas }: PersonaMonetizationPro
         </Card>
       </div>
 
-      {/* Create Product Form */}
+      {/* Create Service Form */}
       {showCreateForm && (
         <Card>
           <CardHeader>
-            <CardTitle>Create Monetization Product</CardTitle>
+            <CardTitle>Create Persona Service</CardTitle>
             <p className="text-sm text-muted-foreground">
-              Set up a new revenue stream for your persona
+              Set up a new service offering for your persona
             </p>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-2">
-                <label className="text-sm font-medium">Product Title</label>
+                <label className="text-sm font-medium">Service Name</label>
                 <Input
-                  placeholder="Enter product title"
-                  value={formData.title}
-                  onChange={(e) => setFormData(prev => ({ ...prev, title: e.target.value }))}
+                  placeholder="Enter service name"
+                  value={formData.service_name}
+                  onChange={(e) => setFormData(prev => ({ ...prev, service_name: e.target.value }))}
                 />
               </div>
 
               <div className="space-y-2">
                 <label className="text-sm font-medium">Persona</label>
                 <Select 
-                  value={formData.replicaId} 
-                  onValueChange={(value) => setFormData(prev => ({ ...prev, replicaId: value }))}
+                  value={formData.persona_id} 
+                  onValueChange={(value) => setFormData(prev => ({ ...prev, persona_id: value }))}
                 >
                   <SelectTrigger>
                     <SelectValue placeholder="Select persona" />
@@ -281,13 +519,13 @@ export default function PersonaMonetization({ replicas }: PersonaMonetizationPro
               </div>
 
               <div className="space-y-2">
-                <label className="text-sm font-medium">Product Type</label>
+                <label className="text-sm font-medium">Service Type</label>
                 <Select 
-                  value={formData.type} 
-                  onValueChange={(value) => setFormData(prev => ({ ...prev, type: value }))}
+                  value={formData.service_type} 
+                  onValueChange={(value) => setFormData(prev => ({ ...prev, service_type: value }))}
                 >
                   <SelectTrigger>
-                    <SelectValue placeholder="Select product type" />
+                    <SelectValue placeholder="Select service type" />
                   </SelectTrigger>
                   <SelectContent>
                     {productTypes.map((type) => (
@@ -300,35 +538,37 @@ export default function PersonaMonetization({ replicas }: PersonaMonetizationPro
                     ))}
                   </SelectContent>
                 </Select>
+              </div>              <div className="space-y-2">
+                <label className="text-sm font-medium">Price in ALGO</label>
+                <Input
+                  type="number"
+                  min="0.1"
+                  step="0.1"
+                  placeholder="1.0"
+                  value={formData.price_algo}
+                  onChange={(e) => {
+                    const algoAmount = parseFloat(e.target.value) || 0;
+                    setFormData(prev => ({ 
+                      ...prev, 
+                      price_algo: algoAmount,
+                      price_usd: algoAmount * 0.25 // Rough conversion
+                    }));
+                  }}
+                />
+                <p className="text-xs text-muted-foreground">
+                  ≈ ${formData.price_usd.toFixed(2)} USD
+                </p>
               </div>
 
               <div className="space-y-2">
-                <label className="text-sm font-medium">Price</label>
-                <div className="flex gap-2">
-                  <Input
-                    type="number"
-                    min="0"
-                    step="0.01"
-                    placeholder="0.00"
-                    value={formData.price}
-                    onChange={(e) => setFormData(prev => ({ ...prev, price: parseFloat(e.target.value) || 0 }))}
-                  />
-                  <Select 
-                    value={formData.currency} 
-                    onValueChange={(value) => setFormData(prev => ({ ...prev, currency: value }))}
-                  >
-                    <SelectTrigger className="w-32">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {currencyOptions.map((currency) => (
-                        <SelectItem key={currency.value} value={currency.value}>
-                          {currency.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
+                <label className="text-sm font-medium">Duration (minutes)</label>
+                <Input
+                  type="number"
+                  min="1"
+                  placeholder="30"
+                  value={formData.duration_minutes}
+                  onChange={(e) => setFormData(prev => ({ ...prev, duration_minutes: parseInt(e.target.value) || 30 }))}
+                />
               </div>
             </div>
 
@@ -340,7 +580,202 @@ export default function PersonaMonetization({ replicas }: PersonaMonetizationPro
                 onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
                 rows={3}
               />
-            </div>
+            </div>            {/* Content Delivery Fields */}
+            {(formData.service_type === 'content_creation' || formData.service_type === 'voice_message') && (
+              <div className="space-y-4">
+                <div className="border rounded-lg p-4 bg-slate-50">
+                  <h4 className="font-medium mb-3">Content Delivery</h4>
+                  
+                  {/* Content Type Selection for Content Creation */}
+                  {formData.service_type === 'content_creation' && (
+                    <div className="space-y-2 mb-4">
+                      <label className="block text-sm font-medium">Content Type</label>
+                      <Select
+                        value={formData.file_type || ''}
+                        onValueChange={(value) => setFormData(prev => ({ ...prev, file_type: value }))}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select content type" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="video">
+                            <div className="flex items-center gap-2">
+                              <Video className="h-4 w-4" />
+                              Video Content
+                            </div>
+                          </SelectItem>
+                          <SelectItem value="image">
+                            <div className="flex items-center gap-2">
+                              <Image className="h-4 w-4" />
+                              Image Content
+                            </div>
+                          </SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  )}
+                  
+                  {/* Show file upload only if content type is selected (for content_creation) or if voice_message */}
+                  {((formData.service_type === 'content_creation' && formData.file_type) || formData.service_type === 'voice_message') && (
+                    <div className="space-y-3">
+                      <div>
+                        <label className="block text-sm font-medium mb-2">
+                          <Upload className="inline w-4 h-4 mr-1" />
+                          Upload {
+                            formData.service_type === 'voice_message' ? 'Audio' : 
+                            formData.file_type === 'video' ? 'Video' :
+                            formData.file_type === 'image' ? 'Image' : 'Content'
+                          } File
+                        </label>
+                        
+                        <div className="relative">
+                          <input
+                            ref={fileInputRef}
+                            type="file"
+                            onChange={(e) => {
+                              const file = e.target.files?.[0];
+                              if (file) handleFileUpload(file);
+                            }}
+                            className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                            accept={
+                              formData.service_type === 'voice_message' ? 'audio/*' :
+                              formData.file_type === 'video' ? 'video/*' :
+                              formData.file_type === 'image' ? 'image/*' : 
+                              'video/*,image/*'
+                            }
+                          />
+                          <div className="w-full border-2 border-dashed border-gray-300 rounded-lg px-6 py-8 text-center hover:border-blue-400 transition-colors bg-white">
+                            {formData.uploaded_file ? (
+                              <div className="space-y-2">
+                                <File className="h-12 w-12 text-green-500 mx-auto" />
+                                <div className="font-medium">{formData.uploaded_file.name}</div>
+                                <div className="text-gray-500 text-sm">{formatFileSize(formData.uploaded_file.size)}</div>
+                                {fileUploadProgress !== null && fileUploadProgress < 100 && (
+                                  <div className="w-full bg-gray-200 rounded-full h-2">
+                                    <div 
+                                      className="bg-blue-500 h-2 rounded-full transition-all duration-300"
+                                      style={{ width: `${fileUploadProgress}%` }}
+                                    />
+                                  </div>
+                                )}
+                                {fileUploadProgress === 100 && (
+                                  <div className="flex items-center justify-center text-green-500 text-sm">
+                                    <CheckCircle className="h-4 w-4 mr-1" />
+                                    Upload complete
+                                  </div>
+                                )}
+                                <Button
+                                  type="button"
+                                  onClick={removeFile}
+                                  variant="outline"
+                                  size="sm"
+                                  className="mt-2 text-red-500 hover:text-red-700"
+                                >
+                                  <X className="h-3 w-3 mr-1" />
+                                  Remove
+                                </Button>
+                              </div>
+                            ) : (
+                              <div className="space-y-2">
+                                <Upload className="h-12 w-12 text-gray-400 mx-auto" />
+                                <div className="text-gray-600">
+                                  Click to upload {
+                                    formData.service_type === 'voice_message' ? 'audio' : 
+                                    formData.file_type === 'video' ? 'video' :
+                                    formData.file_type === 'image' ? 'image' : 'content'
+                                  } file
+                                </div>
+                                <div className="text-gray-400 text-xs">
+                                  Max file size: 50MB
+                                  {formData.file_type === 'video' && ' • MP4, MOV, AVI supported'}
+                                  {formData.file_type === 'image' && ' • JPEG, PNG, GIF, WebP supported'}
+                                  {formData.service_type === 'voice_message' && ' • MP3, WAV, M4A, OGG supported'}
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                        
+                        {fileUploadError && (
+                          <div className="mt-2 text-red-500 text-sm flex items-center">
+                            <X className="h-4 w-4 mr-1" />
+                            {fileUploadError}
+                          </div>
+                        )}
+                      </div>
+
+                      {/* OR divider */}
+                      <div className="flex items-center">
+                        <div className="flex-1 border-t border-gray-200"></div>
+                        <span className="px-3 text-gray-400 text-sm">OR</span>
+                        <div className="flex-1 border-t border-gray-200"></div>
+                      </div>
+
+                      {/* URL Option */}
+                      <div className="space-y-2">
+                        <label className="block text-sm font-medium">
+                          <Link className="inline w-4 h-4 mr-1" />
+                          Content URL
+                        </label>
+                        <Input
+                          type="url"
+                          value={formData.delivery_url || ''}
+                          onChange={(e) => setFormData(prev => ({ 
+                            ...prev, 
+                            delivery_url: e.target.value,
+                            uploaded_file: e.target.value ? null : prev.uploaded_file
+                          }))}
+                          placeholder={`https://your-content-hosting.com/file.${
+                            formData.service_type === 'voice_message' ? 'mp3' :
+                            formData.file_type === 'video' ? 'mp4' :
+                            formData.file_type === 'image' ? 'jpg' : 
+                            'mp4'
+                          }`}
+                          disabled={!!formData.uploaded_file}
+                        />
+                        <p className="text-gray-500 text-xs">
+                          Link to your {
+                            formData.service_type === 'voice_message' ? 'audio' : 
+                            formData.file_type === 'video' ? 'video' :
+                            formData.file_type === 'image' ? 'image' : 'content'
+                          } hosted on external platforms (YouTube, Vimeo, Google Drive, etc.)
+                        </p>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {formData.service_type === 'text' && (
+              <div className="space-y-2">
+                <label className="block text-sm font-medium">
+                  <FileText className="inline w-4 h-4 mr-1" />
+                  Text Content
+                </label>
+                <Textarea
+                  value={formData.delivery_content || ''}
+                  onChange={(e) => setFormData(prev => ({ ...prev, delivery_content: e.target.value }))}
+                  rows={5}
+                  placeholder="Enter the text content that will be delivered to purchasers..."
+                />
+              </div>
+            )}
+
+            {formData.service_type !== 'consultation' && formData.service_type && (
+              <div className="flex items-center space-x-2">
+                <input
+                  type="checkbox"
+                  id="auto-delivery"
+                  checked={formData.auto_delivery || false}
+                  onChange={(e) => setFormData(prev => ({ ...prev, auto_delivery: e.target.checked }))}
+                  className="w-4 h-4 rounded"
+                />
+                <label htmlFor="auto-delivery" className="text-sm">
+                  Enable automatic delivery after purchase
+                </label>
+              </div>
+            )}
 
             <div className="flex gap-2">
               <Button onClick={createProduct}>
@@ -353,74 +788,89 @@ export default function PersonaMonetization({ replicas }: PersonaMonetizationPro
             </div>
           </CardContent>
         </Card>
-      )}
-
-      {/* Products List */}
-      {products.length > 0 ? (
+      )}      {/* Services List */}
+      {loading ? (
+        <Card>
+          <CardContent className="flex items-center justify-center py-12">
+            <div className="text-center">
+              <div className="animate-spin w-8 h-8 border-2 border-blue-500 border-t-transparent rounded-full mx-auto mb-4"></div>
+              <p className="text-muted-foreground">Loading services...</p>
+            </div>
+          </CardContent>
+        </Card>
+      ) : services.length > 0 ? (
         <Card>
           <CardHeader>
-            <CardTitle>Your Products</CardTitle>
+            <CardTitle>Your Services</CardTitle>
             <p className="text-sm text-muted-foreground">
-              Manage your monetization products and services
+              Manage your persona services and monetization offerings
             </p>
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
-              {products.map((product) => {
-                const replica = replicas.find(r => r.id === product.replica_id);
-                const productType = productTypes.find(t => t.value === product.type);
+              {services.map((service) => {
+                const replica = replicas.find(r => r.id === service.persona_id);
+                const serviceType = productTypes.find(t => t.value === service.service_type);
                 
                 return (
-                  <div key={product.id} className="flex items-center gap-4 p-4 border rounded-lg">
+                  <div key={service.id} className="flex items-center gap-4 p-4 border rounded-lg">
                     <div className="w-12 h-12 bg-gradient-to-r from-green-500 to-emerald-500 rounded-lg flex items-center justify-center text-white">
-                      {productType?.icon || <DollarSign className="h-6 w-6" />}
+                      {serviceType?.icon || <DollarSign className="h-6 w-6" />}
                     </div>
                     
                     <div className="flex-1">
-                      <h4 className="font-medium">{product.title}</h4>
+                      <h4 className="font-medium">{service.service_name}</h4>
                       <p className="text-sm text-muted-foreground">
-                        {replica?.name} • {productType?.label}
+                        {replica?.name} • {serviceType?.label}
                       </p>
                       <div className="flex items-center gap-4 mt-1">
                         <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                          product.status === 'active' 
+                          service.is_active 
                             ? 'bg-green-100 text-green-800'
-                            : product.status === 'draft'
-                            ? 'bg-yellow-100 text-yellow-800'
-                            : 'bg-red-100 text-red-800'
+                            : 'bg-gray-100 text-gray-800'
                         }`}>
-                          {product.status}
+                          {service.is_active ? 'Active' : 'Inactive'}
                         </span>
                         <span className="text-sm font-semibold">
-                          {getCurrencySymbol(product.currency)}{product.price}
+                          {service.price_algo} ALGO
                         </span>
                         <span className="text-xs text-muted-foreground">
-                          {product.sales_count} sales • {getCurrencySymbol(product.currency)}{product.revenue} revenue
+                          ≈ ${service.price_usd.toFixed(2)} USD
                         </span>
-                      </div>
-                    </div>
+                        {service.duration_minutes && (
+                          <span className="text-xs text-muted-foreground">
+                            {service.duration_minutes} min
+                          </span>
+                        )}
+                      </div>                    </div>
 
                     <div className="flex items-center gap-2">
-                      <Button variant="outline" size="sm" onClick={() => viewAnalytics(product)}>
+                      <Button variant="outline" size="sm" onClick={() => viewAnalytics(service)}>
                         <Eye className="h-4 w-4" />
                       </Button>
                       <Button 
                         variant="outline" 
                         size="sm" 
-                        onClick={() => toggleProductStatus(product.id)}
+                        onClick={() => toggleServiceStatus(service.id)}
                       >
-                        {product.status === 'active' ? (
+                        {service.is_active ? (
                           <Shield className="h-4 w-4" />
                         ) : (
                           <Settings className="h-4 w-4" />
                         )}
                       </Button>
+                      <Button 
+                        variant="outline" 
+                        size="sm" 
+                        onClick={() => deleteService(service.id)}
+                        className="text-red-600 hover:text-red-700"
+                      >
+                        <Download className="h-4 w-4" />                      </Button>
                     </div>
                   </div>
                 );
               })}
-            </div>
-          </CardContent>
+            </div>          </CardContent>
         </Card>
       ) : (
         <Card className="p-12 text-center">
@@ -540,14 +990,20 @@ export default function PersonaMonetization({ replicas }: PersonaMonetizationPro
               <h4 className="font-semibold mb-2 flex items-center gap-2">
                 <Calendar className="h-4 w-4 text-purple-500" />
                 Premium Events
-              </h4>
-              <p className="text-sm text-gray-600">
+              </h4>              <p className="text-sm text-gray-600">
                 VIP access to live events, exclusive Q&As, private sessions
               </p>
             </div>
           </div>
-        </CardContent>
-      </Card>
+        </CardContent>      </Card>
+
+      {/* Enhanced Analytics Dashboard */}
+      {showAnalytics && (
+        <EnhancedAnalyticsDashboard 
+          walletAddress={walletAddress}
+          onClose={() => setShowAnalytics(false)}
+        />
+      )}
     </div>
   );
 }

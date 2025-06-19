@@ -8,15 +8,16 @@ import {
   User,
   Loader2,
   Sparkles,
-  Eye,
-  EyeOff
+  EyeOff,
+  Trash2,
+  Edit
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { getPersonas } from '@/lib/api/personas';
+import { getPersonas, deletePersona } from '@/lib/api/personas';
 import { geminiChatService, ChatMessage, ChatConfig } from '@/lib/api/gemini-chat';
 import { toast } from '@/components/ui/use-toast';
 
@@ -47,9 +48,10 @@ export function ActivePersonas({ className }: ActivePersonasProps) {
   const [chatSession, setChatSession] = useState<string | null>(null);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [currentMessage, setCurrentMessage] = useState('');
-  const [isTyping, setIsTyping] = useState(false);
-  const [isSending, setIsSending] = useState(false);
+  const [isTyping, setIsTyping] = useState(false);  const [isSending, setIsSending] = useState(false);
   const [showChat, setShowChat] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [personaToDelete, setPersonaToDelete] = useState<UserPersona | null>(null);
   
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
@@ -199,7 +201,6 @@ export function ActivePersonas({ className }: ActivePersonasProps) {
       sendMessage();
     }
   };
-
   const closeChat = () => {
     if (chatSession) {
       geminiChatService.endChat(chatSession);
@@ -209,6 +210,51 @@ export function ActivePersonas({ className }: ActivePersonasProps) {
     setSelectedPersona(null);
     setMessages([]);
     setCurrentMessage('');
+  };
+
+  const handleDeletePersona = (persona: UserPersona) => {
+    setPersonaToDelete(persona);
+    setShowDeleteConfirm(true);
+  };
+
+  const confirmDeletePersona = async () => {
+    if (!personaToDelete) return;
+
+    try {
+      const { error } = await deletePersona(personaToDelete.id);
+      
+      if (error) {
+        throw error;
+      }
+
+      // Remove from local state
+      setPersonas(prev => prev.filter(p => p.id !== personaToDelete.id));
+      
+      // Clear selection if deleted persona was selected
+      if (selectedPersona?.id === personaToDelete.id) {
+        closeChat();
+      }
+
+      toast({
+        title: "Persona Deleted",
+        description: `${personaToDelete.name} has been permanently deleted.`,
+      });
+    } catch (error) {
+      console.error('Error deleting persona:', error);
+      toast({
+        title: "Error",
+        description: "Failed to delete persona. Please try again.",
+        variant: "destructive"
+      });
+    } finally {
+      setShowDeleteConfirm(false);
+      setPersonaToDelete(null);
+    }
+  };
+
+  const cancelDeletePersona = () => {
+    setShowDeleteConfirm(false);
+    setPersonaToDelete(null);
   };
 
   if (loading) {
@@ -278,67 +324,99 @@ export function ActivePersonas({ className }: ActivePersonasProps) {
                 {personas.map((persona) => {
                   const { status, color } = getPersonaStatus(persona);
                   const emoji = getPersonaEmoji(persona.replica_type);
-                  
-                  return (
+                    return (
                     <motion.div
                       key={persona.id}
                       className={`
-                        bg-gray-50 hover:bg-blue-50 rounded-xl p-5 border-2 cursor-pointer transition-all duration-300 
-                        hover:shadow-md hover:border-blue-300 group h-fit
+                        bg-gray-50 hover:bg-blue-50 rounded-xl p-5 border-2 transition-all duration-300 
+                        hover:shadow-md hover:border-blue-300 group h-fit relative
                         ${selectedPersona?.id === persona.id ? 'border-blue-500 bg-blue-50 shadow-md' : 'border-gray-200'}
                       `}
                       initial={{ opacity: 0, y: 20 }}
                       animate={{ opacity: 1, y: 0 }}
                       whileHover={{ scale: 1.02 }}
-                      onClick={() => startChatWithPersona(persona)}
                     >
-                      <div className="flex items-start space-x-4">
-                        <div className="relative flex-shrink-0">
-                          <Avatar className="w-12 h-12 border-2 border-white shadow-sm">
-                            <AvatarImage src={persona.attributes?.image_url} />
-                            <AvatarFallback className="text-xl bg-gradient-to-br from-blue-100 to-purple-100">
-                              {emoji}
-                            </AvatarFallback>
-                          </Avatar>
-                          <div className={`absolute -bottom-1 -right-1 w-4 h-4 rounded-full border-2 border-white ${color} shadow-sm`} />
-                        </div>
-                        
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center space-x-2 mb-2">
-                            <h4 className="font-semibold text-gray-900 truncate">{persona.name}</h4>
-                            <Badge variant="secondary" className="text-xs bg-blue-100 text-blue-800 border-blue-200 flex-shrink-0">
-                              {persona.replica_type}
-                            </Badge>
+                      {/* Action buttons */}
+                      <div className="absolute top-3 right-3 opacity-0 group-hover:opacity-100 transition-opacity flex gap-1">
+                        <motion.button
+                          className="bg-white/90 hover:bg-white text-gray-600 hover:text-blue-600 p-2 rounded-lg shadow-sm border"
+                          whileHover={{ scale: 1.1 }}
+                          whileTap={{ scale: 0.9 }}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            toast({
+                              title: "Edit Persona",
+                              description: "Edit functionality coming soon!",
+                            });
+                          }}
+                        >
+                          <Edit className="h-3 w-3" />
+                        </motion.button>
+                        <motion.button
+                          className="bg-white/90 hover:bg-red-50 text-gray-600 hover:text-red-600 p-2 rounded-lg shadow-sm border"
+                          whileHover={{ scale: 1.1 }}
+                          whileTap={{ scale: 0.9 }}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleDeletePersona(persona);
+                          }}
+                        >
+                          <Trash2 className="h-3 w-3" />
+                        </motion.button>
+                      </div>
+
+                      <div 
+                        className="cursor-pointer"
+                        onClick={() => startChatWithPersona(persona)}
+                      >
+                        <div className="flex items-start space-x-4">
+                          <div className="relative flex-shrink-0">
+                            <Avatar className="w-12 h-12 border-2 border-white shadow-sm">
+                              <AvatarImage src={persona.attributes?.image_url} />
+                              <AvatarFallback className="text-xl bg-gradient-to-br from-blue-100 to-purple-100">
+                                {emoji}
+                              </AvatarFallback>
+                            </Avatar>
+                            <div className={`absolute -bottom-1 -right-1 w-4 h-4 rounded-full border-2 border-white ${color} shadow-sm`} />
                           </div>
-                          <p className="text-sm text-gray-600 line-clamp-2 mb-3">
-                            {persona.description}
-                          </p>
                           
-                          {persona.attributes?.traits && persona.attributes.traits.length > 0 && (
-                            <div className="flex flex-wrap gap-1 mb-3">
-                              {persona.attributes.traits.slice(0, 2).map((trait, index) => (
-                                <Badge key={index} variant="outline" className="text-xs bg-white border-gray-300 text-gray-700">
-                                  {typeof trait === 'string' ? trait : trait.name}
-                                </Badge>
-                              ))}
-                              {persona.attributes.traits.length > 2 && (
-                                <Badge variant="outline" className="text-xs bg-white border-gray-300 text-gray-700">
-                                  +{persona.attributes.traits.length - 2} more
-                                </Badge>
-                              )}
+                          <div className="flex-1 min-w-0 pr-16">
+                            <div className="flex items-center space-x-2 mb-2">
+                              <h4 className="font-semibold text-gray-900 truncate">{persona.name}</h4>
+                              <Badge variant="secondary" className="text-xs bg-blue-100 text-blue-800 border-blue-200 flex-shrink-0">
+                                {persona.replica_type}
+                              </Badge>
                             </div>
-                          )}
-                          
-                          <div className="flex items-center justify-between">
-                            <div className="text-xs text-gray-500 capitalize font-medium">
-                              {status}
+                            <p className="text-sm text-gray-600 line-clamp-2 mb-3">
+                              {persona.description}
+                            </p>
+                            
+                            {persona.attributes?.traits && persona.attributes.traits.length > 0 && (
+                              <div className="flex flex-wrap gap-1 mb-3">
+                                {persona.attributes.traits.slice(0, 2).map((trait, index) => (
+                                  <Badge key={index} variant="outline" className="text-xs bg-white border-gray-300 text-gray-700">
+                                    {typeof trait === 'string' ? trait : trait.name}
+                                  </Badge>
+                                ))}
+                                {persona.attributes.traits.length > 2 && (
+                                  <Badge variant="outline" className="text-xs bg-white border-gray-300 text-gray-700">
+                                    +{persona.attributes.traits.length - 2} more
+                                  </Badge>
+                                )}
+                              </div>
+                            )}
+                            
+                            <div className="flex items-center justify-between">
+                              <div className="text-xs text-gray-500 capitalize font-medium">
+                                {status}
+                              </div>
+                              <motion.div
+                                className="opacity-0 group-hover:opacity-100 transition-opacity bg-blue-500 text-white p-2 rounded-lg shadow-sm"
+                                whileHover={{ scale: 1.1 }}
+                              >
+                                <MessageSquare className="h-4 w-4" />
+                              </motion.div>
                             </div>
-                            <motion.div
-                              className="opacity-0 group-hover:opacity-100 transition-opacity bg-blue-500 text-white p-2 rounded-lg shadow-sm"
-                              whileHover={{ scale: 1.1 }}
-                            >
-                              <MessageSquare className="h-4 w-4" />
-                            </motion.div>
                           </div>
                         </div>
                       </div>
@@ -472,6 +550,58 @@ export function ActivePersonas({ className }: ActivePersonasProps) {
                   </div>
                 </CardContent>
               </Card>
+            </motion.div>
+          )}        </AnimatePresence>
+
+        {/* Delete Confirmation Dialog */}
+        <AnimatePresence>
+          {showDeleteConfirm && personaToDelete && (
+            <motion.div
+              className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+            >
+              <motion.div
+                className="bg-white rounded-2xl p-6 w-full max-w-md shadow-2xl"
+                initial={{ scale: 0.8, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                exit={{ scale: 0.8, opacity: 0 }}
+                transition={{ type: "spring", damping: 25, stiffness: 200 }}
+              >
+                <div className="text-center">
+                  <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <Trash2 className="h-8 w-8 text-red-600" />
+                  </div>
+                  
+                  <h3 className="text-xl font-bold text-gray-900 mb-2">Delete Persona</h3>
+                  <p className="text-gray-600 mb-2">
+                    Are you sure you want to delete <strong>{personaToDelete.name}</strong>?
+                  </p>
+                  <p className="text-gray-500 text-sm mb-6">
+                    This action cannot be undone. All associated data and conversations will be permanently removed.
+                  </p>
+                  
+                  <div className="flex gap-3 justify-center">
+                    <Button
+                      variant="outline"
+                      onClick={cancelDeletePersona}
+                      className="px-6"
+                    >
+                      Cancel
+                    </Button>
+                    
+                    <Button
+                      variant="destructive"
+                      onClick={confirmDeletePersona}
+                      className="px-6"
+                    >
+                      <Trash2 className="h-4 w-4 mr-2" />
+                      Delete Persona
+                    </Button>
+                  </div>
+                </div>
+              </motion.div>
             </motion.div>
           )}
         </AnimatePresence>

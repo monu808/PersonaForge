@@ -312,9 +312,8 @@ export function ReplicaTroubleshooter() {
         <CardContent>
           <div className="space-y-3">
             {Object.entries(REPLICA_STATUS_GUIDE).map(([status, guide]) => (
-              <div key={status} className="flex items-start gap-3 p-3 border rounded-lg">
-                <div className="mt-1">
-                  {status === 'ready' && <CheckCircle className="h-5 w-5 text-green-500" />}
+              <div key={status} className="flex items-start gap-3 p-3 border rounded-lg">                <div className="mt-1">
+                  {(status === 'ready' || status === 'completed') && <CheckCircle className="h-5 w-5 text-green-500" />}
                   {status === 'training' && <Clock className="h-5 w-5 text-blue-500" />}
                   {status === 'error' && <XCircle className="h-5 w-5 text-red-500" />}
                   {status === 'pending' && <AlertTriangle className="h-5 w-5 text-yellow-500" />}

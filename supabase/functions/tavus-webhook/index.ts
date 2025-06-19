@@ -22,9 +22,7 @@ serve(async (req) => {
     // Initialize Supabase client
     const supabaseUrl = Deno.env.get("SUPABASE_URL") || "";
     const supabaseServiceRole = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || "";
-    const supabase = createClient(supabaseUrl, supabaseServiceRole);
-
-    if (payload.event === "video.completed") {
+    const supabase = createClient(supabaseUrl, supabaseServiceRole);    if (payload.event === "video.completed") {
       const videoData = payload.data;
       
       const { error } = await supabase
@@ -62,6 +60,40 @@ serve(async (req) => {
 
       if (error) {
         throw error;
+      }
+    } else if (payload.event === "conversation.started") {
+      const conversationData = payload.data;
+      console.log("Conversation started:", conversationData);
+      
+      // Update live event status to 'live' if it exists
+      const { error } = await supabase
+        .from("live_events")
+        .update({
+          status: "live",
+          start_time: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        })
+        .eq("room_url", conversationData.conversation_url);
+
+      if (error) {
+        console.error("Failed to update live event status:", error);
+      }
+    } else if (payload.event === "conversation.ended") {
+      const conversationData = payload.data;
+      console.log("Conversation ended:", conversationData);
+      
+      // Update live event status to 'ended'
+      const { error } = await supabase
+        .from("live_events")
+        .update({
+          status: "ended",
+          end_time: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        })
+        .eq("room_url", conversationData.conversation_url);
+
+      if (error) {
+        console.error("Failed to update live event status:", error);
       }
     }
 

@@ -82,14 +82,15 @@ export interface TavusPersonaResponse {
 
 // --- Conversation Types ---
 export interface TavusConversationRequest {
-  persona_id: string;
+  replica_id: string; // Changed from persona_id to replica_id
   conversation_name?: string;
   callback_url?: string;
   properties?: {
-    max_duration?: number;
     participant_left_timeout?: number;
     participant_absent_timeout?: number;
     enable_recording?: boolean;
+    // Note: max_duration is not currently supported by Tavus API
+    // max_duration?: number;
   };
 }
 
@@ -347,10 +348,16 @@ export async function createPersonaVideo(request: {
     const replicaId = persona.attributes?.default_replica_id;
     if (!replicaId) {
       throw new Error('No Tavus replica ID found for this persona. Please create a replica first.');
-    }
-
-    // Check replica status before attempting to create video
+    }    // Check replica status before attempting to create video
     const replicaStatus = await checkTavusReplicaStatus(replicaId);
+    
+    // Add debugging log to help identify the issue
+    console.log('DEBUG: Replica status check result:', {
+      replicaId,
+      status: replicaStatus.status,
+      training_progress: replicaStatus.training_progress,
+      error: replicaStatus.error
+    });
     
     if (replicaStatus.status === 'error') {
       throw new Error(`Replica ${replicaId} is in an error state and cannot be used. Please create a new replica. Error: ${replicaStatus.error || 'Unknown error'}`);
@@ -359,8 +366,23 @@ export async function createPersonaVideo(request: {
     if (replicaStatus.status === 'training') {
       throw new Error(`Replica ${replicaId} is still training (${replicaStatus.training_progress || 0}% complete). Please wait for training to complete before generating videos.`);
     }
+      // Accept both 'ready' and 'completed' as valid statuses for video generation
+    // Also temporarily accept any status that's not an error or training state
+    console.log('DEBUG: Checking if status is ready or completed:', {
+      status: replicaStatus.status,
+      isReady: replicaStatus.status === 'ready',
+      isCompleted: replicaStatus.status === 'completed',
+      isValidForGeneration: replicaStatus.status === 'ready' || replicaStatus.status === 'completed'
+    });
     
-    if (replicaStatus.status !== 'ready') {
+    // Allow ready, completed, and any status that suggests the replica is available
+    const validStatuses = ['ready', 'completed', 'active', 'available'];
+    if (!validStatuses.includes(replicaStatus.status) && replicaStatus.status !== 'training' && replicaStatus.status !== 'error') {
+      console.warn(`Unknown replica status: ${replicaStatus.status}. Proceeding with video generation...`);
+    }
+    
+    // Only block if explicitly in error or training state
+    if (replicaStatus.status === 'error' || replicaStatus.status === 'training') {
       throw new Error(`Replica ${replicaId} is not ready for video generation. Current status: ${replicaStatus.status}`);
     }
 
@@ -409,12 +431,19 @@ export async function createPersonaVideo(request: {
         'x-api-key': tavusApiKey,
       },
       body: JSON.stringify(requestBody),
-    });
-
-    const responseData = await response.json();
+    });    const responseData = await response.json();
 
     if (!response.ok) {
-      throw new Error(responseData.error || `HTTP error! status: ${response.status}`);
+      // Provide specific error messages for common issues
+      if (response.status === 402) {
+        throw new Error('Insufficient Tavus credits. Please add credits to your Tavus account or upgrade your plan to generate videos.');
+      } else if (response.status === 401) {
+        throw new Error('Invalid Tavus API key. Please check your API key configuration.');
+      } else if (response.status === 429) {
+        throw new Error('Rate limit exceeded. Please wait a moment before trying again.');
+      } else {
+        throw new Error(responseData.error || `Tavus API error (${response.status}): ${response.statusText}`);
+      }
     }
 
     // Store the video metadata in the database
@@ -523,11 +552,12 @@ export async function createTavusConversation(data: TavusConversationRequest): P
     
     if (!tavusApiKey) {
       throw new Error('TAVUS_API_KEY not configured');
-    }
-
-    const requestBody: any = {
-      persona_id: data.persona_id
+    }    const requestBody: any = {
+      replica_id: data.replica_id
     };
+
+    // Debug logging for API request
+    console.log('DEBUG: Tavus Conversations API request body:', requestBody);
 
     // Add optional fields
     if (data.conversation_name) {
@@ -547,12 +577,20 @@ export async function createTavusConversation(data: TavusConversationRequest): P
         'x-api-key': tavusApiKey,
       },
       body: JSON.stringify(requestBody),
-    });
-
-    const responseData = await response.json();
+    });    const responseData = await response.json();
 
     if (!response.ok) {
-      throw new Error(responseData.error || `HTTP error! status: ${response.status}`);
+      // Provide specific error messages for common issues
+      if (response.status === 400) {
+        const errorDetails = responseData.error || JSON.stringify(responseData);
+        throw new Error(`Bad Request: ${errorDetails}. Please check your conversation parameters.`);
+      } else if (response.status === 402) {
+        throw new Error('Insufficient Tavus credits. Please add credits to your Tavus account or upgrade your plan.');
+      } else if (response.status === 401) {
+        throw new Error('Invalid Tavus API key. Please check your API key configuration.');
+      } else {
+        throw new Error(responseData.error || `Tavus API error (${response.status}): ${response.statusText}`);
+      }
     }
 
     return {
@@ -573,9 +611,9 @@ export async function createTavusConversation(data: TavusConversationRequest): P
 }
 
 /**
- * Lists all replicas associated with the API key.
+ * Ends a Tavus conversation
  */
-export async function listTavusReplicas(): Promise<{ replicas: any[]; error?: string }> {
+export async function endTavusConversation(conversationId: string): Promise<{ success: boolean; error?: string }> {
   try {
     const tavusApiKey = import.meta.env.VITE_TAVUS_API_KEY;
     
@@ -583,7 +621,41 @@ export async function listTavusReplicas(): Promise<{ replicas: any[]; error?: st
       throw new Error('TAVUS_API_KEY not configured');
     }
 
-    const response = await fetch('https://tavusapi.com/v2/replicas', {
+    const response = await fetch(`https://tavusapi.com/v2/conversations/${conversationId}`, {
+      method: 'DELETE',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': tavusApiKey,
+      },
+    });
+
+    if (!response.ok) {
+      const responseData = await response.json();
+      throw new Error(responseData.error || `HTTP error! status: ${response.status}`);
+    }
+
+    return { success: true };
+  } catch (error) {
+    console.error('Error ending Tavus conversation:', error);
+    return { 
+      success: false,
+      error: error instanceof Error ? error.message : String(error) 
+    };
+  }
+}
+
+/**
+ * Lists active Tavus conversations
+ */
+export async function listTavusConversations(): Promise<{ conversations: any[]; error?: string }> {
+  try {
+    const tavusApiKey = import.meta.env.VITE_TAVUS_API_KEY;
+    
+    if (!tavusApiKey) {
+      throw new Error('TAVUS_API_KEY not configured');
+    }
+
+    const response = await fetch('https://tavusapi.com/v2/conversations', {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',
@@ -598,12 +670,46 @@ export async function listTavusReplicas(): Promise<{ replicas: any[]; error?: st
     }
 
     return {
-      replicas: responseData.replicas || responseData || [],
+      conversations: responseData.conversations || responseData || [],
     };
   } catch (error) {
-    console.error('Error listing Tavus replicas:', error);
+    console.error('Error listing Tavus conversations:', error);
     return { 
-      replicas: [],
+      conversations: [],
+      error: error instanceof Error ? error.message : String(error) 
+    };
+  }
+}
+
+/**
+ * Deletes/ends a specific conversation.
+ */
+export async function deleteTavusConversation(conversationId: string): Promise<{ success: boolean; error?: string }> {
+  try {
+    const tavusApiKey = import.meta.env.VITE_TAVUS_API_KEY;
+    
+    if (!tavusApiKey) {
+      throw new Error('TAVUS_API_KEY not configured');
+    }
+
+    const response = await fetch(`https://tavusapi.com/v2/conversations/${conversationId}`, {
+      method: 'DELETE',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': tavusApiKey,
+      },
+    });
+
+    if (!response.ok) {
+      const responseData = await response.json();
+      throw new Error(responseData.error || `HTTP error! status: ${response.status}`);
+    }
+
+    return { success: true };
+  } catch (error) {
+    console.error('Error deleting Tavus conversation:', error);
+    return { 
+      success: false,
       error: error instanceof Error ? error.message : String(error) 
     };
   }

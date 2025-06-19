@@ -103,9 +103,8 @@ export function ReplicaStatusChecker({ initialReplicaId = '' }: ReplicaStatusChe
       }
       
       setAllPersonasStatus(results);
-      
-      const errorCount = results.filter(r => r.status === 'error' || r.status === 'no_replica').length;
-      const readyCount = results.filter(r => r.status === 'ready').length;
+        const errorCount = results.filter(r => r.status === 'error' || r.status === 'no_replica').length;
+      const readyCount = results.filter(r => r.status === 'ready' || r.status === 'completed').length;
       const trainingCount = results.filter(r => r.status === 'training').length;
       
       toast({

@@ -1,11 +1,12 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Loader2, Video, Phone, ExternalLink, Clock, Users } from 'lucide-react';
-import { createTavusConversation } from '@/lib/api/tavus';
+import { createTavusConversation, listTavusConversations, deleteTavusConversation, endTavusConversation } from '@/lib/api/tavus';
+import { createLiveEvent, updateEventStatus } from '@/lib/api/events';
 import { toast } from '@/components/ui/use-toast';
 
 interface TavusConversationManagerProps {
@@ -19,13 +20,19 @@ interface TavusConversationManagerProps {
   onConversationCreated?: (conversationData: any) => void;
 }
 
-export function TavusConversationManager({ personas, onConversationCreated }: TavusConversationManagerProps) {
-  const [selectedPersona, setSelectedPersona] = useState<string>('');
+export function TavusConversationManager({ personas, onConversationCreated }: TavusConversationManagerProps) {  const [selectedPersona, setSelectedPersona] = useState<string>('');
   const [conversationName, setConversationName] = useState('');
   const [maxDuration, setMaxDuration] = useState<number>(30);
   const [enableRecording, setEnableRecording] = useState<boolean>(false);
   const [isCreating, setIsCreating] = useState<boolean>(false);
+  const [isEnding, setIsEnding] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
+  const [currentConversation, setCurrentConversation] = useState<{
+    conversationId: string;
+    conversationUrl: string;
+    liveEventId: string;
+    name: string;
+  } | null>(null);
   const [activeConversations, setActiveConversations] = useState<Array<{
     id: string;
     name: string;
@@ -43,24 +50,40 @@ export function TavusConversationManager({ personas, onConversationCreated }: Ta
     }
 
     setIsCreating(true);
-    setError(null);
+    setError(null);    try {      const selectedPersonaData = personas.find(p => p.id === selectedPersona);
+      
+      if (!selectedPersonaData) {
+        throw new Error('Selected persona not found');
+      }
+      
+      const personaId = selectedPersonaData?.attributes?.default_replica_id;
+        // Debug logging to help identify the issue
+      console.log('DEBUG: Conversation creation parameters:', {
+        selectedPersona,
+        selectedPersonaData: {
+          id: selectedPersonaData.id,
+          name: selectedPersonaData.name,
+          attributes: selectedPersonaData.attributes
+        },
+        resolvedPersonaId: personaId
+      });
 
-    try {
-      const selectedPersonaData = personas.find(p => p.id === selectedPersona);
-      const personaId = selectedPersonaData?.attributes?.default_replica_id || selectedPersona;
+      if (!personaId) {
+        throw new Error(`No Tavus replica ID found for persona "${selectedPersonaData.name}". Please create a replica for this persona first.`);
+      }      // Validate that the replica ID looks like a Tavus replica ID (should start with 'r')
+      if (!personaId.startsWith('r')) {
+        throw new Error(`Invalid replica ID format: ${personaId}. Please ensure the persona has a valid Tavus replica.`);
+      }
 
       const conversationData = await createTavusConversation({
-        persona_id: personaId,
+        replica_id: personaId,
         conversation_name: conversationName || `${selectedPersonaData?.name} Conversation`,
         properties: {
-          max_duration: maxDuration * 60, // Convert to seconds
           participant_left_timeout: 60,
           participant_absent_timeout: 300,
           enable_recording: enableRecording,
         },
-      });
-
-      if (conversationData.error) {
+      });      if (conversationData.error) {
         throw new Error(conversationData.error);
       }
 
@@ -70,29 +93,96 @@ export function TavusConversationManager({ personas, onConversationCreated }: Ta
           id: conversationData.conversation_id,
           name: conversationName || `${selectedPersonaData?.name} Conversation`,
           url: conversationData.conversation_url,
-          persona_name: selectedPersonaData?.name || 'Unknown',
-          created_at: new Date().toISOString(),
+          replica_id: personaId
         };
         
-        setActiveConversations(prev => [newConversation, ...prev]);
+        // Create a live event for this conversation
+        let liveEventId = '';
+        try {
+          const { data: liveEvent, error: eventError } = await createLiveEvent({
+            title: conversationName || `${selectedPersonaData?.name} Conversation`,
+            description: `Live video conversation with ${selectedPersonaData?.name}`,
+            host_replica_id: personaId,
+            participants: [],
+            status: 'live', // Mark as live immediately since conversation is starting
+            start_time: new Date().toISOString(),
+            duration: 60, // Default duration
+            type: 'video_call',
+            visibility: 'public',
+            max_participants: 10,
+            room_url: conversationData.conversation_url
+          });
+
+          if (eventError) {
+            console.error('Failed to create live event:', eventError);
+            // Don't fail the whole process if live event creation fails
+          } else if (liveEvent) {
+            liveEventId = liveEvent.id;
+            console.log('Live event created successfully:', liveEvent);
+          }
+        } catch (eventErr) {
+          console.error('Error creating live event:', eventErr);
+          // Don't fail the whole process if live event creation fails
+        }        // Store current conversation info
+        setCurrentConversation({
+          conversationId: conversationData.conversation_id,
+          conversationUrl: conversationData.conversation_url,
+          liveEventId: liveEventId,
+          name: conversationName || `${selectedPersonaData?.name} Conversation`
+        });
+        
+        // Add to active conversations list
+        const newActiveConversation = {
+          id: conversationData.conversation_id,
+          name: conversationName || `${selectedPersonaData?.name} Conversation`,
+          url: conversationData.conversation_url,
+          persona_name: selectedPersonaData?.name || 'Unknown Persona',
+          created_at: new Date().toISOString()
+        };
+        setActiveConversations(prev => [newActiveConversation, ...prev]);
         
         // Reset form
         setConversationName('');
         setSelectedPersona('');
         
         toast({
-          title: "Conversation Created",
-          description: `Your conversation with ${selectedPersonaData?.name} is ready. Click to join!`,
-        });
+        title: "Conversation Created",
+        description: `Your conversation with ${selectedPersonaData?.name} is ready. Click to join!`,
+      });
 
-        onConversationCreated?.(conversationData);
-      } else {
-        throw new Error('Failed to create conversation - no ID or URL returned');
-      }
+      onConversationCreated?.(conversationData);
+    } else {
+      throw new Error('Failed to create conversation - no ID or URL returned');
+    }
     } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Failed to create conversation';
+      let errorMessage = err instanceof Error ? err.message : 'Failed to create conversation';
+      
+      // Handle specific Tavus API errors
+      if (errorMessage.includes('maximum concurrent conversations')) {
+        errorMessage = `You have reached the maximum number of active conversations on your Tavus account. 
+
+To fix this:
+1. End any existing conversations that are still running
+2. Wait 5-10 minutes for inactive conversations to timeout automatically
+3. Or upgrade your Tavus plan for more concurrent conversations
+
+Try again in a few minutes.`;
+      } else if (errorMessage.includes('Insufficient Tavus credits')) {
+        errorMessage = 'Insufficient Tavus credits. Please add credits to your Tavus account or upgrade your plan.';
+      } else if (errorMessage.includes('Invalid Tavus API key')) {
+        errorMessage = 'Invalid Tavus API key. Please check your API key configuration.';
+      }
+      
       setError(errorMessage);
       console.error('Error creating conversation:', err);
+      
+      toast({
+        title: "Conversation Creation Failed",
+        description: errorMessage.includes('maximum concurrent') ? 
+          "Too many active conversations. Please wait a few minutes and try again." : 
+          errorMessage,
+        variant: "destructive",
+      });
     } finally {
       setIsCreating(false);
     }
@@ -101,6 +191,88 @@ export function TavusConversationManager({ personas, onConversationCreated }: Ta
   const handleJoinConversation = (url: string) => {
     window.open(url, '_blank', 'noopener,noreferrer');
   };
+  const handleEndConversation = async (conversationId: string) => {
+    setIsEnding(true);
+    try {
+      // End the Tavus conversation
+      const { success, error: tavusError } = await endTavusConversation(conversationId);
+      
+      if (!success) {
+        console.error('Failed to end Tavus conversation:', tavusError);
+        toast({
+          title: "Warning",
+          description: "Failed to end conversation in Tavus, but updating status locally.",
+          variant: "destructive",
+        });
+      }
+
+      // Find the conversation in active conversations to get live event ID
+      const conversation = activeConversations.find(conv => conv.id === conversationId);
+      
+      // Update the live event status to ended if we have the live event ID
+      if (currentConversation?.liveEventId && currentConversation.conversationId === conversationId) {
+        const { error: eventError } = await updateEventStatus(
+          currentConversation.liveEventId, 
+          'ended'
+        );
+        
+        if (eventError) {
+          console.error('Failed to update live event status:', eventError);
+        }
+      }
+
+      // Clear current conversation if it's the one being ended
+      if (currentConversation?.conversationId === conversationId) {
+        setCurrentConversation(null);
+      }
+      
+      // Remove from active conversations
+      setActiveConversations(prev => 
+        prev.filter(conv => conv.id !== conversationId)
+      );      toast({
+        title: "Conversation Ended",
+        description: "The conversation has been ended successfully.",
+      });
+
+    } catch (error) {
+      console.error('Error ending conversation:', error);
+      toast({
+        title: "Error",
+        description: "Failed to end conversation properly. It may still be active.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsEnding(false);
+    }
+  };
+
+  // Load active conversations on component mount
+  const loadActiveConversations = async () => {
+    try {
+      const result = await listTavusConversations();
+      if (result.conversations) {
+        // Filter only active/live conversations
+        const activeConvs = result.conversations
+          .filter(conv => conv.status === 'active' || conv.status === 'live')
+          .map(conv => ({
+            id: conv.conversation_id,
+            name: conv.conversation_name || 'Untitled Conversation',
+            url: conv.conversation_url,
+            persona_name: conv.persona_name || 'Unknown Persona',
+            created_at: conv.created_at
+          }));
+        
+        setActiveConversations(activeConvs);
+      }
+    } catch (error) {
+      console.error('Error loading active conversations:', error);
+      // Don't show error toast for this, as it's not critical
+    }
+  };
+
+  useEffect(() => {
+    loadActiveConversations();
+  }, []);
 
   return (
     <div className="space-y-6">
@@ -144,9 +316,7 @@ export function TavusConversationManager({ personas, onConversationCreated }: Ta
                 onChange={(e) => setConversationName(e.target.value)}
                 placeholder="Enter conversation name..."
               />
-            </div>
-
-            <div className="grid grid-cols-2 gap-4">
+            </div>            <div className="grid grid-cols-2 gap-4">
               <div>
                 <Label htmlFor="maxDuration">Max Duration (minutes)</Label>
                 <Input 
@@ -156,7 +326,12 @@ export function TavusConversationManager({ personas, onConversationCreated }: Ta
                   max="120"
                   value={maxDuration} 
                   onChange={(e) => setMaxDuration(parseInt(e.target.value) || 30)}
+                  disabled
+                  className="opacity-50"
                 />
+                <p className="text-xs text-gray-500 mt-1">
+                  Currently not supported by Tavus API
+                </p>
               </div>
               <div className="flex items-center space-x-2 pt-6">
                 <input
@@ -169,11 +344,10 @@ export function TavusConversationManager({ personas, onConversationCreated }: Ta
                   Enable Recording
                 </Label>
               </div>
-            </div>
-
-            {error && (
+            </div>            {error && (
               <div className="text-sm text-red-600 bg-red-50 p-3 rounded-md">
-                Error: {error}
+                <div className="font-medium mb-2">Unable to create conversation</div>
+                <div className="whitespace-pre-wrap">{error}</div>
               </div>
             )}
 
@@ -215,16 +389,32 @@ export function TavusConversationManager({ personas, onConversationCreated }: Ta
                     <p className="text-xs text-gray-500 flex items-center gap-1 mt-1">
                       <Clock className="h-3 w-3" />
                       Created {new Date(conversation.created_at).toLocaleTimeString()}
-                    </p>
+                    </p>                  </div>
+                  <div className="flex items-center gap-2">
+                    <Button
+                      onClick={() => handleJoinConversation(conversation.url)}
+                      size="sm"
+                      variant="outline"
+                      className="flex items-center gap-2"
+                    >
+                      <ExternalLink className="h-4 w-4" />
+                      Join
+                    </Button>
+                    <Button
+                      onClick={() => handleEndConversation(conversation.id)}
+                      size="sm"
+                      variant="destructive"
+                      disabled={isEnding}
+                      className="flex items-center gap-2"
+                    >
+                      {isEnding ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : (
+                        <Phone className="h-4 w-4" />
+                      )}
+                      End
+                    </Button>
                   </div>
-                  <Button
-                    onClick={() => handleJoinConversation(conversation.url)}
-                    size="sm"
-                    className="flex items-center gap-2"
-                  >
-                    <ExternalLink className="h-4 w-4" />
-                    Join
-                  </Button>
                 </div>
               ))}
             </div>
