@@ -1,3 +1,4 @@
+import { DeploymentStatusBadge } from './components/DeploymentStatusBadge';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { Layout } from './components/layout/layout';
 import HomePage from './pages/home';
@@ -40,6 +41,10 @@ function App() {
   }, []);
 
   return (
+    <>
+      <div className="fixed bottom-4 right-4 z-50">
+        <DeploymentStatusBadge />
+      </div>
     <AuthProvider>
       <SubscriptionProvider>
         <Router>
@@ -133,6 +138,7 @@ function App() {
         </Router>
       </SubscriptionProvider>
     </AuthProvider>
+    </>
   );
 }
 
