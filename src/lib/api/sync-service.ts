@@ -1,7 +1,6 @@
 // Centralized sync service for keeping data consistent across all components
 import { supabase } from '../auth';
 import { getPersonas } from './personas';
-import { getPersonaAudios } from './elevenlabs';
 
 // Event emitter for real-time sync
 class EventEmitter {
@@ -59,10 +58,16 @@ export class SyncService {
       this.syncInterval = null;
     }
   }
-
   // Sync all data
   async syncAllData() {
     try {
+      // Check if user is authenticated before syncing
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        // User not authenticated, skip sync
+        return;
+      }
+
       await Promise.all([
         this.syncPersonas(),
         this.syncVoices(),
@@ -73,10 +78,15 @@ export class SyncService {
       console.error('Sync error:', error);
     }
   }
-
   // Sync personas between create page and neurovia
   async syncPersonas() {
     try {
+      // Check authentication first
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        return [];
+      }
+
       const { data: personas, error } = await getPersonas();
       if (error) throw error;
 

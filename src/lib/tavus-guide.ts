@@ -10,13 +10,13 @@ export const TAVUS_VIDEO_REQUIREMENTS = {
   // Duration requirements
   MIN_DURATION_SECONDS: 10,
   MAX_DURATION_SECONDS: 120, // 2 minutes
-  RECOMMENDED_DURATION_SECONDS: 30,
-  
-  // Technical requirements
+  RECOMMENDED_DURATION_SECONDS: 30,  // Technical requirements
   MIN_RESOLUTION: '720p',
   RECOMMENDED_RESOLUTION: '1080p',
   SUPPORTED_FORMATS: ['mp4', 'mov', 'webm'],
-  MAX_FILE_SIZE_MB: 500,
+  MAX_FILE_SIZE_MB: 50, // Supabase server-side limit
+  RECOMMENDED_FILE_SIZE_MB: 25, // For better upload reliability
+  SUPABASE_LIMIT_MB: 50, // Actual Supabase storage limit
   
   // Consent requirements
   REQUIRED_CONSENT_PHRASE: "I hereby give my consent to create an AI replica of myself.",

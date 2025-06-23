@@ -1,10 +1,15 @@
-import React from 'react';
-import { AuthForm } from '@/components/auth/auth-form';
+// This file is deprecated. Use sign-in.tsx instead.
+// Redirecting to the proper sign-in page...
+
+import { useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 
 export default function LoginPage() {
-  return (
-    <div className="min-h-screen bg-gray-50 flex flex-col justify-center py-12 sm:px-6 lg:px-8">
-      <AuthForm />
-    </div>
-  );
+  const navigate = useNavigate();
+  
+  useEffect(() => {
+    navigate('/auth/sign-in', { replace: true });
+  }, [navigate]);
+
+  return null;
 }

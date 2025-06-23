@@ -49,9 +49,8 @@ export async function signUp({ email, password, phone }: z.infer<typeof signUpSc
     const { data, error } = await supabase.auth.signUp({
       email,
       password,
-      phone,
-      options: {
-        emailRedirectTo: `${window.location.origin}/auth/callback`,
+      phone,      options: {
+        emailRedirectTo: `${window.location.origin}/auth/email-confirm`,
         data: {
           phone_verified: false,
         },
@@ -85,11 +84,6 @@ export async function signInWithGoogle() {
       provider: 'google',
       options: {
         redirectTo: `${window.location.origin}/auth/callback`,
-        queryParams: {
-          access_type: 'offline',
-          prompt: 'consent',
-        },
-        scopes: 'email profile',
       },
     });
 

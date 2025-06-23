@@ -4,7 +4,7 @@ import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Loader2, Video, CheckCircle, AlertTriangle, Info, ArrowRight, ArrowLeft } from 'lucide-react';
+import { Loader2, Video, CheckCircle, AlertTriangle, Info, ArrowRight, ArrowLeft, HelpCircle } from 'lucide-react';
 import { toast } from '@/components/ui/use-toast';
 import { getPersonas } from '@/lib/api/personas';
 import { createTavusReplica } from '@/lib/api/tavus';
@@ -12,6 +12,7 @@ import { supabase } from '@/lib/auth';
 import { TAVUS_VIDEO_REQUIREMENTS } from '@/lib/tavus-guide';
 import { STORAGE_BUCKETS } from '@/lib/constants';
 import { TavusConsentRecorder } from '@/components/video/TavusConsentRecorder';
+import VideoCompressionGuide from '@/components/video/VideoCompressionGuide';
 
 interface ReplicaCreateFormProps {
   onSuccess?: (replicaData: any) => void;
@@ -33,13 +34,14 @@ export function ReplicaCreateForm({ onSuccess, onError }: ReplicaCreateFormProps
   const [consentAcknowledged, setConsentAcknowledged] = useState(false);
   const [useConsentRecorder, setUseConsentRecorder] = useState(false);
   const [useTrainingRecorder, setUseTrainingRecorder] = useState(false);
-  
-  // UI state
+    // UI state
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [personas, setPersonas] = useState<any[]>([]);
   const [selectedPersona, setSelectedPersona] = useState<string>('');
   const [loadingPersonas, setLoadingPersonas] = useState(false);
+  const [showCompressionGuide, setShowCompressionGuide] = useState(false);
+  const [largeFileSizeMB, setLargeFileSizeMB] = useState<number | null>(null);
   useEffect(() => {
     loadPersonas();
   }, []);
@@ -108,7 +110,6 @@ export function ReplicaCreateForm({ onSuccess, onError }: ReplicaCreateFormProps
   const handleTrainingRecorderSkip = () => {
     setUseTrainingRecorder(false);
   };
-
   const handleTrainingFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
@@ -120,9 +121,19 @@ export function ReplicaCreateForm({ onSuccess, onError }: ReplicaCreateFormProps
         errors.push('File must be a video format');
       }
       
-      // Check file size
+      // Check file size (convert MB to bytes for comparison)
+      const fileSizeMB = file.size / (1024 * 1024);
       if (file.size > TAVUS_VIDEO_REQUIREMENTS.MAX_FILE_SIZE_MB * 1024 * 1024) {
-        errors.push(`File size must be under ${TAVUS_VIDEO_REQUIREMENTS.MAX_FILE_SIZE_MB}MB`);
+        errors.push(`File size (${fileSizeMB.toFixed(1)}MB) exceeds the ${TAVUS_VIDEO_REQUIREMENTS.MAX_FILE_SIZE_MB}MB limit. Please compress your video or use a smaller file.`);
+      }
+      
+      // Warn if file is large but within limits
+      if (fileSizeMB > TAVUS_VIDEO_REQUIREMENTS.RECOMMENDED_FILE_SIZE_MB && fileSizeMB <= TAVUS_VIDEO_REQUIREMENTS.MAX_FILE_SIZE_MB) {
+        toast({
+          title: 'Large File Warning',
+          description: `Your video is ${fileSizeMB.toFixed(1)}MB. For better upload reliability, consider compressing to under ${TAVUS_VIDEO_REQUIREMENTS.RECOMMENDED_FILE_SIZE_MB}MB.`,
+          variant: 'default',
+        });
       }
       
       // Check file extension
@@ -179,18 +190,61 @@ export function ReplicaCreateForm({ onSuccess, onError }: ReplicaCreateFormProps
     try {
       // First, if we have a file, we need to upload it to get a URL
       let finalVideoUrl = trainVideoUrl;
-      
-      if (trainVideoFile) {
+        if (trainVideoFile) {
+        // Check file size before upload
+        const fileSizeMB = trainVideoFile.size / (1024 * 1024);
+        console.log(`Uploading video file: ${trainVideoFile.name}, Size: ${fileSizeMB.toFixed(2)}MB`);
+        
         // Upload video file to Supabase storage
         const fileName = `${crypto.randomUUID()}.${trainVideoFile.name.split('.').pop()}`;
         const { error: uploadError } = await supabase.storage
           .from(STORAGE_BUCKETS.REPLICA_TRAINING_VIDEOS)
           .upload(`training-videos/${fileName}`, trainVideoFile, {
-            contentType: trainVideoFile.type
-          });
-
-        if (uploadError) {
-          throw new Error(`Failed to upload video file: ${uploadError.message}`);
+            contentType: trainVideoFile.type,
+            duplex: 'half' // Required for large file uploads
+          });        if (uploadError) {
+          console.error('Upload error details:', uploadError);
+          
+          // Provide specific error messages based on the error type
+          let errorMessage = `Failed to upload video file: ${uploadError.message}`;
+          let showGuide = false;
+            // Handle specific Supabase error codes
+          if ((uploadError as any).statusCode === '413' || uploadError.message.includes('Payload too large') || uploadError.message.includes('413')) {
+            errorMessage = `🚫 File Too Large: Your video (${fileSizeMB.toFixed(1)}MB) exceeds Supabase's ${TAVUS_VIDEO_REQUIREMENTS.SUPABASE_LIMIT_MB}MB upload limit.\n\nClick "Show Compression Guide" below for help reducing your file size.`;
+            showGuide = true;
+            setLargeFileSizeMB(fileSizeMB);
+          } else if (uploadError.message.includes('maximum allowed size') || uploadError.message.includes('too large')) {
+            errorMessage = `Video file is too large (${fileSizeMB.toFixed(1)}MB). Please compress your video to under ${TAVUS_VIDEO_REQUIREMENTS.MAX_FILE_SIZE_MB}MB and try again.`;
+            showGuide = true;
+            setLargeFileSizeMB(fileSizeMB);
+          } else if (uploadError.message.includes('Bad Request')) {
+            errorMessage = `Upload failed due to file size restrictions. Your video (${fileSizeMB.toFixed(1)}MB) exceeds the upload limit. Please compress your video to under ${TAVUS_VIDEO_REQUIREMENTS.MAX_FILE_SIZE_MB}MB.`;
+            showGuide = true;
+            setLargeFileSizeMB(fileSizeMB);
+          } else if (uploadError.message.includes('permission') || uploadError.message.includes('unauthorized')) {
+            errorMessage = 'Upload failed due to permission issues. Please try again or contact support.';
+          }
+          
+          // If it's a file size error, suggest showing the compression guide
+          if (showGuide) {
+            toast({
+              title: 'File Size Error',
+              description: errorMessage,
+              variant: 'destructive',
+              action: (
+                <Button 
+                  variant="outline" 
+                  size="sm"
+                  onClick={() => setShowCompressionGuide(true)}
+                >
+                  <HelpCircle className="h-4 w-4 mr-2" />
+                  Show Compression Guide
+                </Button>
+              ),
+            });
+          }
+          
+          throw new Error(errorMessage);
         }
 
         // Get the public URL for the uploaded video
@@ -523,15 +577,30 @@ export function ReplicaCreateForm({ onSuccess, onError }: ReplicaCreateFormProps
                         onChange={handleTrainingFileUpload}
                         disabled={!!trainVideoUrl}
                         className="file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-medium file:bg-primary-50 file:text-primary-700 hover:file:bg-primary-100"
-                      />
-                      {trainVideoFile && (
-                        <p className="text-xs text-green-600 mt-1">
-                          ✓ File selected: {trainVideoFile.name}
-                        </p>
-                      )}
-                      <p className="text-xs text-gray-500 mt-1">
-                        Upload your training video directly (max 100MB recommended)
+                      />                      {trainVideoFile && (
+                        <div className="text-xs mt-1">
+                          <p className="text-green-600">
+                            ✓ File selected: {trainVideoFile.name}
+                          </p>
+                          <p className="text-gray-500">
+                            Size: {(trainVideoFile.size / (1024 * 1024)).toFixed(1)}MB
+                          </p>
+                        </div>
+                      )}                      <p className="text-xs text-gray-500 mt-1">
+                        <strong>Max file size: {TAVUS_VIDEO_REQUIREMENTS.MAX_FILE_SIZE_MB}MB</strong> • Recommended: {TAVUS_VIDEO_REQUIREMENTS.RECOMMENDED_FILE_SIZE_MB}MB or less for reliable uploads
                       </p>
+                      <div className="flex items-center gap-2 mt-2">
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => setShowCompressionGuide(true)}
+                          className="text-xs h-auto p-1"
+                        >
+                          <HelpCircle className="h-3 w-3 mr-1" />
+                          Need help compressing your video?
+                        </Button>
+                      </div>
                     </div>
                   </div>
                 )}                {/* Video Requirements */}
@@ -571,13 +640,26 @@ export function ReplicaCreateForm({ onSuccess, onError }: ReplicaCreateFormProps
                         ))}
                       </ul>
                     </div>
-                    
-                    <div>
+                      <div>
                       <h5 className="text-xs font-medium text-red-800 mb-1">Avoid:</h5>
                       <ul className="text-xs text-red-700 space-y-0.5 ml-2">
                         {TAVUS_VIDEO_REQUIREMENTS.AVOID.map((avoid, index) => (
                           <li key={index}>• {avoid}</li>
                         ))}
+                      </ul>
+                    </div>
+                    
+                    {/* Video Compression Tips */}
+                    <div className="bg-orange-50 border border-orange-200 rounded-md p-3">
+                      <h5 className="text-xs font-semibold text-orange-800 mb-1">💡 Video Too Large?</h5>
+                      <p className="text-xs text-orange-700 mb-1">
+                        If your video exceeds {TAVUS_VIDEO_REQUIREMENTS.MAX_FILE_SIZE_MB}MB, try these compression options:
+                      </p>
+                      <ul className="text-xs text-orange-700 space-y-0.5 ml-2">
+                        <li>• Use online tools like CloudConvert, FreeConvert, or Clipchamp</li>
+                        <li>• Reduce resolution to 720p if currently higher</li>
+                        <li>• Adjust bitrate/quality settings to reduce file size</li>
+                        <li>• Trim video to {TAVUS_VIDEO_REQUIREMENTS.RECOMMENDED_DURATION_SECONDS}s if longer</li>
                       </ul>
                     </div>
                   </div>
@@ -745,10 +827,20 @@ export function ReplicaCreateForm({ onSuccess, onError }: ReplicaCreateFormProps
                 when your replica is ready to use. The replica will then be available for video and 
                 conversation generation.
               </p>
-            </div>
-          </div>
+            </div>          </div>
         </CardContent>
       </Card>
+
+      {/* Video Compression Guide Modal */}
+      {showCompressionGuide && (
+        <VideoCompressionGuide
+          currentFileSizeMB={largeFileSizeMB || undefined}
+          onClose={() => {
+            setShowCompressionGuide(false);
+            setLargeFileSizeMB(null);
+          }}
+        />
+      )}
     </div>
   );
 }

@@ -1,10 +1,11 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Label } from '@/components/ui/label';
+import { VoiceSelector } from '@/components/audio/VoiceSelector';
+import UsageGate from '@/components/subscription/usage-gate';
 import { 
   Mic, 
   Video, 
@@ -14,9 +15,7 @@ import {
   Share,
   Settings,
   Play,
-  Square,
-  MessageCircle,
-  Phone,
+  Square,  MessageCircle,
   Monitor,
   Globe,
   Lock,
@@ -457,11 +456,11 @@ export default function EventHost({ replicas }: EventHostProps) {
           </CardContent>
         </Card>
       </div>
-    );
-  }
+    );  }
 
   return (
-    <div className="space-y-6">
+    <UsageGate action="eventHosting">
+      <div className="space-y-6">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
@@ -622,43 +621,30 @@ export default function EventHost({ replicas }: EventHostProps) {
                       value={formData.customTopic}
                       onChange={(e) => setFormData(prev => ({ ...prev, customTopic: e.target.value }))}
                     />
-                  </div>
+                  </div>                  <VoiceSelector
+                    selectedVoiceId={formData.host1Voice}                    onVoiceSelect={(voiceId) => {
+                      setFormData(prev => ({ ...prev, host1Voice: voiceId }));
+                    }}
+                    label="Host 1 Voice"
+                    defaultVoices={[{
+                      id: DEFAULT_PODCAST_VOICES.host1.id,
+                      name: `${DEFAULT_PODCAST_VOICES.host1.name} (Default)`,
+                      category: 'default',
+                      description: 'Professional female voice, perfect for hosting discussions'
+                    }]}
+                  />
 
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium">Host 1 Voice</label>
-                    <Select 
-                      value={formData.host1Voice} 
-                      onValueChange={(value) => setFormData(prev => ({ ...prev, host1Voice: value }))}
-                    >
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value={DEFAULT_PODCAST_VOICES.host1.id}>
-                          {DEFAULT_PODCAST_VOICES.host1.name} (Default)
-                        </SelectItem>
-                        {/* Add more voice options here if available */}
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium">Host 2 Voice</label>
-                    <Select 
-                      value={formData.host2Voice} 
-                      onValueChange={(value) => setFormData(prev => ({ ...prev, host2Voice: value }))}
-                    >
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value={DEFAULT_PODCAST_VOICES.host2.id}>
-                          {DEFAULT_PODCAST_VOICES.host2.name} (Default)
-                        </SelectItem>
-                        {/* Add more voice options here if available */}
-                      </SelectContent>
-                    </Select>
-                  </div>
+                  <VoiceSelector
+                    selectedVoiceId={formData.host2Voice}                    onVoiceSelect={(voiceId) => {
+                      setFormData(prev => ({ ...prev, host2Voice: voiceId }));
+                    }}
+                    label="Host 2 Voice"
+                    defaultVoices={[{
+                      id: DEFAULT_PODCAST_VOICES.host2.id,
+                      name: `${DEFAULT_PODCAST_VOICES.host2.name} (Default)`,
+                      category: 'default',                      description: 'Professional male voice, great for co-hosting podcasts'
+                    }]}
+                  />
 
                   <div className="space-y-2">
                     <label className="text-sm font-medium">Quality</label>
@@ -855,8 +841,8 @@ export default function EventHost({ replicas }: EventHostProps) {
               </p>
             </div>
           </div>
-        </CardContent>
-      </Card>
+        </CardContent>      </Card>
     </div>
+    </UsageGate>
   );
 }

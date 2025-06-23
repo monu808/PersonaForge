@@ -38,3 +38,43 @@ export function getRandomColor(): string {
   ];
   return colors[Math.floor(Math.random() * colors.length)];
 }
+
+export function formatFileSize(bytes: number): string {
+  if (bytes === 0) return '0 Bytes';
+  
+  const k = 1024;
+  const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+  const i = Math.floor(Math.log(bytes) / Math.log(k));
+  
+  return `${parseFloat((bytes / Math.pow(k, i)).toFixed(1))} ${sizes[i]}`;
+}
+
+export function validateVideoFile(
+  file: File, 
+  maxSizeMB: number = 50,
+  supportedFormats: string[] = ['mp4', 'mov', 'webm']
+): { isValid: boolean; errors: string[] } {
+  const errors = [];
+  
+  // Check file type
+  if (!file.type.startsWith('video/')) {
+    errors.push('File must be a video format');
+  }
+  
+  // Check file size
+  const fileSizeMB = file.size / (1024 * 1024);
+  if (fileSizeMB > maxSizeMB) {
+    errors.push(`File size (${fileSizeMB.toFixed(1)}MB) exceeds the ${maxSizeMB}MB limit`);
+  }
+  
+  // Check file extension
+  const extension = file.name.split('.').pop()?.toLowerCase();
+  if (extension && !supportedFormats.includes(extension)) {
+    errors.push(`File format must be one of: ${supportedFormats.join(', ').toUpperCase()}`);
+  }
+  
+  return {
+    isValid: errors.length === 0,
+    errors
+  };
+}

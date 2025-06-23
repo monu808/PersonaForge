@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { motion } from 'framer-motion';
 import {
   ArrowLeft,
@@ -18,8 +18,9 @@ import {
 import { Link, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import FeatureGate from '@/components/subscription/feature-gate';
+import UsageGate from '@/components/subscription/usage-gate';
 import { createPersona } from '@/lib/api/personas';
+import SubscriptionService from '@/lib/subscription/service';
 import { toast } from '@/components/ui/use-toast';
 import {
   BEHAVIOR_TRAITS,
@@ -56,16 +57,26 @@ export default function CreatePage() {
       setSelectedTraits([...selectedTraits, trait]);
     }
   };
-
   const handleCreatePersona = async () => {
     try {
       setIsCreating(true);
+      
+      // Check if user has permission to create persona
+      const permission = await SubscriptionService.canPerformAction('personas');
+      if (!permission.allowed) {
+        toast({
+          title: 'Persona Limit Reached',
+          description: permission.reason || 'You have reached your persona creation limit.',
+          variant: 'destructive',
+        });
+        return;
+      }
       
       const replicaType = selectedTemplate && selectedTemplate !== 'scratch'
         ? PERSONA_TEMPLATES.find(t => t.id === selectedTemplate)?.type || 'professional'
         : 'professional';
 
-      const { data, error } = await createPersona({
+      const { error } = await createPersona({
         name: personaName,
         description: personaDescription,
         traits: selectedTraits,
@@ -74,13 +85,14 @@ export default function CreatePage() {
 
       if (error) throw error;
 
-      toast({
+      // Increment persona usage after successful creation
+      await SubscriptionService.incrementUsage('personas', 1);      toast({
         title: 'Success!',
         description: 'Your persona has been created successfully.',
       });
 
-      // Navigate to the persona management page with the new persona ID
-      navigate(`/personas/${data.id}/manage`);
+      // Navigate to the Coruscant dashboard after successful creation
+      navigate('/coruscant');
     } catch (err) {
       console.error('Error creating persona:', err);
       toast({
@@ -97,16 +109,15 @@ export default function CreatePage() {
   const prevStep = () => setStep(step - 1);
   return (
     <div className="min-h-screen bg-gray-50 py-8">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <FeatureGate 
-          feature="persona_creation"
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">        <UsageGate 
+          action="personas"
           fallback={
             <div className="max-w-4xl mx-auto text-center py-12">
               <BrainCircuitIcon className="h-16 w-16 text-gray-400 mx-auto mb-6" />
-              <h2 className="text-2xl font-bold text-gray-900 mb-4">Premium Feature</h2>
-              <p className="text-gray-600 mb-6">Persona creation is available for Premium subscribers and above.</p>
+              <h2 className="text-2xl font-bold text-gray-900 mb-4">Persona Limit Reached</h2>
+              <p className="text-gray-600 mb-6">You've reached your persona creation limit. Upgrade to create more personas.</p>
               <Button asChild>
-                <Link to="/pricing">Upgrade to Premium</Link>
+                <Link to="/pricing">Upgrade Plan</Link>
               </Button>
             </div>
           }
@@ -611,7 +622,7 @@ export default function CreatePage() {
               </div>
             )}          </motion.div>
         </div>
-        </FeatureGate>
+        </UsageGate>
       </div>
     </div>
   );

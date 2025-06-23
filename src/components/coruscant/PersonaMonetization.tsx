@@ -43,6 +43,7 @@ import {
 } from '@/lib/api/algorand';
 import type { PersonaService } from '@/lib/api/algorand';
 import EnhancedAnalyticsDashboard from '@/components/analytics/EnhancedAnalyticsDashboard';
+import UsageGate from '@/components/subscription/usage-gate';
 
 interface Replica {
   id: string;
@@ -386,9 +387,9 @@ export default function PersonaMonetization({ replicas }: PersonaMonetizationPro
     const i = Math.floor(Math.log(bytes) / Math.log(k));
     return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
   };
-
   return (
-    <div className="space-y-6">      {/* Header */}
+    <UsageGate action="monetizationEnabled">
+      <div className="space-y-6">{/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 bg-gradient-to-r from-green-500 to-emerald-500 rounded-lg flex items-center justify-center">
@@ -1002,8 +1003,8 @@ export default function PersonaMonetization({ replicas }: PersonaMonetizationPro
         <EnhancedAnalyticsDashboard 
           walletAddress={walletAddress}
           onClose={() => setShowAnalytics(false)}
-        />
-      )}
+        />      )}
     </div>
+    </UsageGate>
   );
 }

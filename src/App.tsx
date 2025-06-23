@@ -13,6 +13,10 @@ import CoruscantPage from './pages/coruscant';
 import Neurovia from './pages/neurovia';
 import SignInPage from './pages/auth/sign-in';
 import SignUpPage from './pages/auth/sign-up';
+import AuthCallbackPage from './pages/auth/callback';
+import EmailConfirmPage from './pages/auth/email-confirm';
+import ForgotPasswordPage from './pages/auth/forgot-password';
+import ResetPasswordPage from './pages/auth/reset-password';
 import PersonasPage from './pages/personas';
 import PersonaManagePage from './pages/personas/[id]/manage';
 import PricingPage from './components/subscription/pricing-page';
@@ -20,6 +24,9 @@ import PaymentSuccessPage from './pages/payment-success';
 import AdminTestPage from './pages/admin-test';
 import IntegrationTestPage from './pages/integration-test';
 import SystemStatusPage from './pages/system-status';
+import GrantEnterpriseAccess from './components/admin/GrantEnterpriseAccess';
+import DatabaseDiagnosticPage from './pages/database-diagnostic';
+import PasswordResetTestPage from './pages/password-reset-test';
 import { AuthProvider } from './lib/context/auth-context';
 import { SubscriptionProvider } from './lib/revenuecat/context';
 import { ProtectedRoute } from './components/auth/protected-route';
@@ -38,14 +45,22 @@ function App() {
       syncService.stopSync();
     };
   }, []);
-
   return (
     <AuthProvider>
       <SubscriptionProvider>
-        <Router>
-          <Routes>
+        <Router
+          future={{
+            v7_startTransition: true,
+            v7_relativeSplatPath: true
+          }}
+        >          <Routes>
             <Route path="/auth/sign-in" element={<SignInPage />} />
             <Route path="/auth/sign-up" element={<SignUpPage />} />
+            <Route path="/auth/callback" element={<AuthCallbackPage />} />
+            <Route path="/auth/email-confirm" element={<EmailConfirmPage />} />            <Route path="/auth/forgot-password" element={<ForgotPasswordPage />} />
+            <Route path="/auth/reset-password" element={<ResetPasswordPage />} />
+            <Route path="/debug/database" element={<DatabaseDiagnosticPage />} />
+            <Route path="/debug/password-reset" element={<PasswordResetTestPage />} />
             <Route path="/neurovia" element={
               <ProtectedRoute>
                 <Neurovia />
@@ -73,7 +88,13 @@ function App() {
                 <ProtectedRoute>
                   <SystemStatusPage />
                 </ProtectedRoute>
-              } />              <Route path="create" element={
+              } />
+              <Route path="admin/grant-access" element={
+                <ProtectedRoute>
+                  <GrantEnterpriseAccess />
+                </ProtectedRoute>
+              } />
+              <Route path="create" element={
                 <ProtectedRoute>
                   <CreatePage />
                 </ProtectedRoute>
@@ -82,8 +103,12 @@ function App() {
                 <ProtectedRoute>
                   <PersonasPage />
                 </ProtectedRoute>
+              } />              <Route path="personas/:id" element={
+                <ProtectedRoute>
+                  <PersonaManagePage />
+                </ProtectedRoute>
               } />
-              <Route path="personas/:id" element={
+              <Route path="personas/:id/manage" element={
                 <ProtectedRoute>
                   <PersonaManagePage />
                 </ProtectedRoute>
@@ -126,6 +151,11 @@ function App() {
               <Route path="profile" element={
                 <ProtectedRoute>
                   <ProfilePage />
+                </ProtectedRoute>
+              } />
+              <Route path="database-diagnostic" element={
+                <ProtectedRoute>
+                  <DatabaseDiagnosticPage />
                 </ProtectedRoute>
               } />
             </Route>

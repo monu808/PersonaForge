@@ -18,7 +18,7 @@ import {
 // - 99.995% SLA with reimbursement
 // - Unlimited IPFS Gateway access
 // - Enhanced analytics and archival data
-const ALGORAND_SERVER = 'https://mainnet-api.algonode.cloud';
+const ALGORAND_SERVER = 'https://testnet-api.algonode.cloud';
 const ALGORAND_PORT = '';
 const ALGORAND_TOKEN = '';
 
@@ -27,7 +27,7 @@ const ALGORAND_TOKEN = '';
 
 // Initialize Pera Wallet with proper configuration
 const peraWallet = new PeraWalletConnect({
-  chainId: 416001, // Use 416001 for mainnet, 416002 for testnet
+  chainId: 416002, // Use 416001 for mainnet, 416002 for testnet
   shouldShowSignTxnToast: true,
   compactMode: false
 });

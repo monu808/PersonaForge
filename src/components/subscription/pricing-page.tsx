@@ -1,21 +1,15 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { useSubscription } from '@/lib/revenuecat/context';
-import { SUBSCRIPTION_TIERS as STRIPE_TIERS } from '@/lib/stripe/config';
-import PaywallComponent from './paywall';
-import StripeCheckout from '@/components/stripe/stripe-checkout';
+import { SUBSCRIPTION_PLANS, SubscriptionPlan } from '@/lib/subscription/plans';
+import SubscriptionService from '@/lib/subscription/service';
 import { 
   Star, 
-  Zap, 
   Crown, 
   Building2, 
-  Check, 
-  ArrowRight,
-  Sparkles,
-  CreditCard
+  Sparkles
 } from 'lucide-react';
 
 interface PricingPageProps {
@@ -23,331 +17,288 @@ interface PricingPageProps {
 }
 
 const PricingPage: React.FC<PricingPageProps> = ({ className = '' }) => {
-  const { subscriptionTier, isSubscribed } = useSubscription();
-  const [showPaywall, setShowPaywall] = useState(false);
-  const [showCheckout, setShowCheckout] = useState(false);
-  const [selectedTier, setSelectedTier] = useState<string>('');
-  const [checkoutData, setCheckoutData] = useState<{
-    priceId: string;
-    planName: string;
-    amount: number;
-    billingCycle: 'monthly' | 'yearly';
-  } | null>(null);
-  const getTierIcon = (tierId: string) => {
-    switch (tierId) {
-      case 'premium': return <Star className="h-6 w-6" />;
-      case 'pro': return <Zap className="h-6 w-6" />;
-      case 'creator': return <Crown className="h-6 w-6" />;
-      case 'enterprise': return <Building2 className="h-6 w-6" />;
-      default: return <Sparkles className="h-6 w-6" />;
+  const [currentPlan, setCurrentPlan] = useState<SubscriptionPlan>(SUBSCRIPTION_PLANS.free);
+  const [usageData, setUsageData] = useState<any>(null);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    loadUserData();
+  }, []);
+
+  const loadUserData = async () => {
+    try {
+      const { plan } = await SubscriptionService.getUserSubscription();
+      const usage = await SubscriptionService.getUsageWithLimits();
+      setCurrentPlan(plan);
+      setUsageData(usage);
+    } catch (error) {
+      console.error('Error loading user data:', error);
+    } finally {
+      setIsLoading(false);
     }
   };
 
-  const handleGetStarted = (tierId: string) => {
-    setSelectedTier(tierId);
-    setShowPaywall(true);
+  const getTierIcon = (planId: string) => {
+    switch (planId) {
+      case 'premium': return <Star className="h-6 w-6 text-blue-500" />;
+      case 'creator': return <Crown className="h-6 w-6 text-purple-500" />;
+      case 'enterprise': return <Building2 className="h-6 w-6 text-gray-500" />;
+      default: return <Sparkles className="h-6 w-6 text-gray-400" />;
+    }
+  };
+  const handleUpgrade = (planId: string) => {
+    if (planId === 'enterprise') {
+      // For enterprise, show contact form or redirect
+      alert('Please contact our sales team for Enterprise pricing and setup.');
+      return;
+    }
+    // For other plans, this would integrate with Stripe
+    alert(`Upgrade to ${planId} plan - Stripe integration pending`);
   };
 
-  const handleCheckout = (priceId: string, planName: string, amount: number, billingCycle: 'monthly' | 'yearly') => {
-    setCheckoutData({ priceId, planName, amount, billingCycle });
-    setShowPaywall(false);
-    setShowCheckout(true);
+  const formatPrice = (price: number) => {
+    if (price === 0) return 'Free';
+    return `₹${price.toFixed(2)}`;
   };
 
-  const handleCheckoutSuccess = (subscriptionId: string) => {
-    setShowCheckout(false);
-    setCheckoutData(null);
-    // Could redirect to success page or show success message
-    window.location.href = `/payment/success?subscription_id=${subscriptionId}`;
-  };
+  const plans = [
+    SUBSCRIPTION_PLANS.free,
+    SUBSCRIPTION_PLANS.premium,
+    SUBSCRIPTION_PLANS.creator,
+    SUBSCRIPTION_PLANS.enterprise
+  ];
 
-  const handleCheckoutError = (error: string) => {
-    console.error('Checkout error:', error);
-    // Could show error message to user
-  };
-  const getPrice = (tier: string): { monthly: string; yearly: string; discount?: string } => {
-    const tierConfig = Object.values(STRIPE_TIERS).find(t => 
-      t.name.toLowerCase() === tier || 
-      tier === t.name.toLowerCase().replace(' ', '')
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600"></div>
+      </div>
     );
-    
-    if (!tierConfig) {
-      return { monthly: '$0', yearly: '$0' };
-    }
-
-    const yearlyDiscount = Math.round((1 - (tierConfig.yearlyPrice / (tierConfig.monthlyPrice * 12))) * 100);
-    
-    return {
-      monthly: `$${tierConfig.monthlyPrice.toFixed(2)}`,
-      yearly: `$${tierConfig.yearlyPrice.toFixed(2)}`,
-      discount: yearlyDiscount > 0 ? `${yearlyDiscount}%` : undefined
-    };
-  };
+  }
 
   return (
-    <div className={className}>
-      {/* Header */}
-      <div className="text-center max-w-3xl mx-auto mb-16">
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.6 }}
-        >
-          <h1 className="text-4xl font-bold text-gray-900 mb-6">
-            Choose the Perfect Plan for Your Needs
-          </h1>
-          <p className="text-xl text-gray-600">
-            Unlock the full potential of AI persona creation with our flexible pricing plans.
-            Start with a 7-day free trial on any plan.
-          </p>
-        </motion.div>
-      </div>      {/* Pricing Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8 mb-16">
-        {Object.entries(STRIPE_TIERS).map(([tierKey, tier], index) => {
-          const prices = getPrice(tierKey);
-          const isCurrentTier = subscriptionTier === tierKey;
-          const isPopular = tierKey === 'pro'; // Mark Pro as popular
+    <div className={`min-h-screen bg-gradient-to-br from-slate-50 via-white to-purple-50 ${className}`}>
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+        {/* Header */}
+        <div className="text-center mb-16">
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5 }}
+          >
+            <h1 className="text-4xl md:text-5xl font-bold text-gray-900 mb-6">
+              Choose Your Perfect Plan
+            </h1>
+            <p className="text-xl text-gray-600 max-w-3xl mx-auto">
+              Unlock the full potential of AI persona creation with our flexible pricing plans.
+            </p>
+          </motion.div>
+        </div>
 
-          return (
+        {/* Current Plan Info */}
+        {currentPlan.id !== 'free' && (
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5, delay: 0.1 }}
+            className="mb-8"
+          >
+            <Card className="bg-gradient-to-r from-purple-500 to-pink-500 text-white border-0">
+              <CardContent className="p-6">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center space-x-4">
+                    {getTierIcon(currentPlan.id)}
+                    <div>
+                      <h3 className="text-xl font-bold">Current Plan: {currentPlan.name}</h3>
+                      <p className="text-purple-100">
+                        {formatPrice(currentPlan.price.monthly)}/month
+                      </p>
+                    </div>
+                  </div>
+                  <Badge variant="secondary" className="bg-white/20 text-white hover:bg-white/30">
+                    Active
+                  </Badge>
+                </div>
+              </CardContent>
+            </Card>
+          </motion.div>
+        )}
+
+        {/* Pricing Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8 mb-16">
+          {plans.map((plan, index) => (
             <motion.div
-              key={tierKey}
+              key={plan.id}
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.6, delay: index * 0.1 }}
-            >              <Card 
-                className={`relative h-full flex flex-col transition-all duration-300 hover:shadow-2xl hover:-translate-y-2 ${
-                  isPopular ? 'border-primary-200 shadow-lg ring-2 ring-primary-100' : ''
-                }`}
-              >
-                {isPopular && (
+              transition={{ duration: 0.5, delay: index * 0.1 }}
+            >
+              <Card className={`relative h-full transition-all duration-300 hover:shadow-2xl ${
+                plan.popular ? 'ring-2 ring-purple-500 shadow-lg transform scale-105' : 'hover:shadow-lg'
+              } ${currentPlan.id === plan.id ? 'bg-gradient-to-br from-purple-50 to-pink-50 border-purple-200' : ''}`}>
+                {plan.popular && (
                   <div className="absolute -top-4 left-1/2 transform -translate-x-1/2">
-                    <Badge className="bg-primary-600 text-white px-4 py-1 text-sm font-medium">
+                    <Badge className="bg-purple-500 text-white px-4 py-1">
                       Most Popular
                     </Badge>
                   </div>
                 )}
-
-                {isCurrentTier && (
-                  <div className="absolute -top-4 right-4">
-                    <Badge variant="secondary" className="bg-green-100 text-green-700">
-                      Current Plan
-                    </Badge>
+                
+                <CardHeader className="text-center pb-8">
+                  <div className="flex justify-center mb-4">
+                    {getTierIcon(plan.id)}
                   </div>
-                )}
-
-                <CardHeader className="text-center flex-shrink-0">
-                  <div className={`w-16 h-16 mx-auto rounded-2xl flex items-center justify-center mb-4 ${
-                    tierKey === 'premium' ? 'bg-blue-100 text-blue-600' :
-                    tierKey === 'pro' ? 'bg-purple-100 text-purple-600' :
-                    tierKey === 'creator' ? 'bg-orange-100 text-orange-600' :
-                    'bg-gray-100 text-gray-600'
-                  }`}>
-                    {getTierIcon(tierKey)}
-                  </div>
-                    <CardTitle className="text-2xl font-bold">{tier.name}</CardTitle>
-                  
-                  <div className="mt-6">
-                    <div className="text-4xl font-bold text-gray-900">
-                      {prices.yearly}
-                    </div>
-                    <div className="text-sm text-gray-600">per year</div>
-                    <div className="text-xs text-green-600 font-medium">
-                      Save {prices.discount} vs monthly
-                    </div>
-                    <div className="text-sm text-gray-500 mt-1">
-                      {prices.monthly}/month billed monthly
+                  <CardTitle className="text-2xl font-bold text-gray-900">
+                    {plan.name}
+                  </CardTitle>
+                  <div className="mt-4">
+                    <div className="flex items-baseline justify-center">
+                      <span className="text-4xl font-bold text-gray-900">
+                        {formatPrice(plan.price.monthly)}
+                      </span>
+                      {plan.price.monthly > 0 && (
+                        <span className="text-gray-500 ml-2">/month</span>
+                      )}
                     </div>
                   </div>
                 </CardHeader>
 
-                <CardContent className="flex-grow flex flex-col">
-                  <ul className="space-y-3 mb-8 flex-grow">
-                    {tier.features.map((feature, featureIndex) => (
-                      <li key={featureIndex} className="flex items-start">
-                        <Check className="h-5 w-5 text-green-500 mr-3 mt-0.5 flex-shrink-0" />
-                        <span className="text-sm text-gray-700">{feature}</span>
-                      </li>
+                <CardContent className="space-y-4">
+                  {/* Features */}
+                  <div className="space-y-3">
+                    {plan.features.map((feature, featureIndex) => (
+                      <div key={featureIndex} className="flex items-start space-x-3">
+                        <div className="flex-shrink-0 mt-0.5">
+                          {feature.includes('No ') || feature.includes('disabled') ? (
+                            <span className="inline-flex items-center justify-center w-5 h-5 bg-red-100 text-red-600 rounded-full">
+                              ✗
+                            </span>
+                          ) : (
+                            <span className="inline-flex items-center justify-center w-5 h-5 bg-green-100 text-green-600 rounded-full">
+                              ✓
+                            </span>
+                          )}
+                        </div>
+                        <span className="text-sm text-gray-600">{feature}</span>
+                      </div>
                     ))}
-                  </ul>                  <Button
-                    className={`w-full ${
-                      isPopular 
-                        ? 'bg-primary-600 hover:bg-primary-700'
-                        : ''
-                    }`}
-                    variant={isPopular ? 'default' : 'outline'}
-                    disabled={isCurrentTier}
-                    onClick={() => handleGetStarted(tierKey)}
-                  >
-                    {isCurrentTier ? (
-                      'Current Plan'
-                    ) : isSubscribed ? (
-                      <>
-                        <CreditCard className="mr-2 h-4 w-4" />
-                        Upgrade to {tier.name}
-                        <ArrowRight className="ml-2 h-4 w-4" />
-                      </>
+                  </div>
+
+                  {/* CTA Button */}
+                  <div className="pt-6">
+                    {currentPlan.id === plan.id ? (
+                      <Button
+                        className="w-full"
+                        variant="outline"
+                        disabled
+                      >
+                        Current Plan
+                      </Button>
+                    ) : plan.id === 'free' ? (
+                      <Button
+                        className="w-full"
+                        variant="outline"
+                        disabled
+                      >
+                        Free Forever
+                      </Button>
+                    ) : plan.enterprise ? (
+                      <Button
+                        className="w-full bg-gray-800 hover:bg-gray-900 text-white"
+                        onClick={() => handleUpgrade(plan.id)}
+                      >
+                        Contact Sales
+                      </Button>
                     ) : (
-                      <>
-                        <CreditCard className="mr-2 h-4 w-4" />
-                        Start Free Trial
-                        <ArrowRight className="ml-2 h-4 w-4" />
-                      </>
+                      <Button
+                        className={`w-full ${plan.popular 
+                          ? 'bg-purple-600 hover:bg-purple-700 text-white' 
+                          : 'bg-gray-900 hover:bg-gray-800 text-white'
+                        }`}
+                        onClick={() => handleUpgrade(plan.id)}
+                      >
+                        Upgrade to {plan.name}
+                      </Button>
                     )}
-                  </Button>
+                  </div>
                 </CardContent>
               </Card>
             </motion.div>
-          );
-        })}
-      </div>
-
-      {/* Features Comparison */}
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.6, delay: 0.4 }}
-        className="max-w-6xl mx-auto"
-      >
-        <div className="text-center mb-12">
-          <h2 className="text-3xl font-bold text-gray-900 mb-4">
-            Compare Plans & Features
-          </h2>
-          <p className="text-gray-600">
-            See what's included in each plan to find the perfect fit for your needs.
-          </p>
-        </div>
-
-        <Card>
-          <CardContent className="p-0">
-            <div className="overflow-x-auto">
-              <table className="w-full">                <thead>
-                  <tr className="border-b border-gray-200">
-                    <th className="text-left p-6 font-semibold text-gray-900">Features</th>
-                    {Object.entries(STRIPE_TIERS).map(([tierKey, tier]) => (
-                      <th key={tierKey} className="text-center p-6 font-semibold text-gray-900">
-                        {tier.name}
-                      </th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {[
-                    { feature: 'AI Personas', values: ['5', '25', '100', 'Unlimited'] },
-                    { feature: 'Voice Cloning', values: ['Basic', 'Advanced', 'Premium', 'Enterprise'] },
-                    { feature: 'Video Quality', values: ['Standard', 'HD', '4K', 'Custom'] },
-                    { feature: 'API Access', values: ['❌', '✅', '✅', '✅'] },
-                    { feature: 'Commercial Usage', values: ['❌', '✅', '✅', '✅'] },
-                    { feature: 'Team Collaboration', values: ['❌', '❌', '✅', '✅'] },
-                    { feature: 'Priority Support', values: ['❌', '✅', '✅', 'Dedicated'] },
-                    { feature: 'Custom Integrations', values: ['❌', '❌', '✅', '✅'] }
-                  ].map((row, index) => (
-                    <tr key={index} className="border-b border-gray-100 hover:bg-gray-50">
-                      <td className="p-6 font-medium text-gray-900">{row.feature}</td>
-                      {row.values.map((value, valueIndex) => (
-                        <td key={valueIndex} className="p-6 text-center text-gray-600">
-                          {value}
-                        </td>
-                      ))}
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </CardContent>
-        </Card>
-      </motion.div>
-
-      {/* FAQ Section */}
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.6, delay: 0.6 }}
-        className="max-w-4xl mx-auto mt-16"
-      >
-        <div className="text-center mb-12">
-          <h2 className="text-3xl font-bold text-gray-900 mb-4">
-            Frequently Asked Questions
-          </h2>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-          {[
-            {
-              q: "Can I change plans anytime?",
-              a: "Yes, you can upgrade or downgrade your plan at any time. Changes take effect immediately for upgrades, and at the next billing cycle for downgrades."
-            },
-            {
-              q: "Is there a free trial?",
-              a: "Yes! All paid plans come with a 7-day free trial. No credit card required to start."
-            },
-            {
-              q: "What payment methods do you accept?",
-              a: "We accept all major credit cards, PayPal, and other payment methods through our secure payment provider Stripe."
-            },
-            {
-              q: "Can I cancel anytime?",
-              a: "Absolutely. You can cancel your subscription at any time through your account settings or billing portal. No cancellation fees."
-            }
-          ].map((faq, index) => (
-            <Card key={index}>
-              <CardContent className="p-6">
-                <h3 className="font-semibold text-gray-900 mb-2">{faq.q}</h3>
-                <p className="text-gray-600 text-sm">{faq.a}</p>
-              </CardContent>
-            </Card>
           ))}
         </div>
-      </motion.div>
 
-      {/* CTA Section */}
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.6, delay: 0.8 }}
-        className="text-center mt-16 p-12 bg-gradient-to-r from-primary-600 to-secondary-600 rounded-2xl text-white"
-      >
-        <h2 className="text-3xl font-bold mb-4">
-          Ready to Transform Your Content Creation?
-        </h2>
-        <p className="text-xl mb-8 opacity-90">
-          Join thousands of creators who are already using PersonaForge to bring their ideas to life.
-        </p>
-        <Button 
-          size="lg" 
-          variant="secondary"
-          onClick={() => handleGetStarted('pro')}
-          className="bg-white text-primary-600 hover:bg-gray-100"
+        {/* Usage Stats */}
+        {usageData && currentPlan.id !== 'free' && (
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5, delay: 0.4 }}
+            className="mb-16"
+          >
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-2xl font-bold text-center">
+                  Your Usage This Month
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                  <div className="text-center">
+                    <div className="text-3xl font-bold text-purple-600">{usageData.usage?.personas_created || 0}</div>
+                    <div className="text-sm text-gray-600">Personas Created</div>
+                    <div className="text-xs text-gray-500">
+                      of {currentPlan.limits.personas === -1 ? '∞' : currentPlan.limits.personas}
+                    </div>
+                  </div>
+                  <div className="text-center">
+                    <div className="text-3xl font-bold text-blue-600">{usageData.usage?.text_to_speech_used || 0}</div>
+                    <div className="text-sm text-gray-600">TTS Generations</div>
+                    <div className="text-xs text-gray-500">
+                      of {currentPlan.limits.textToSpeech === -1 ? '∞' : currentPlan.limits.textToSpeech}
+                    </div>
+                  </div>
+                  <div className="text-center">
+                    <div className="text-3xl font-bold text-green-600">{usageData.usage?.voice_clones_created || 0}</div>
+                    <div className="text-sm text-gray-600">Voice Clones</div>
+                    <div className="text-xs text-gray-500">
+                      of {currentPlan.limits.voiceCloning === -1 ? '∞' : currentPlan.limits.voiceCloning}
+                    </div>
+                  </div>
+                  <div className="text-center">
+                    <div className="text-3xl font-bold text-orange-600">{usageData.usage?.live_conversation_minutes_used || 0}</div>
+                    <div className="text-sm text-gray-600">Live Minutes</div>
+                    <div className="text-xs text-gray-500">
+                      of {currentPlan.limits.liveConversationMinutes === -1 ? '∞' : currentPlan.limits.liveConversationMinutes}
+                    </div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </motion.div>
+        )}
+
+        {/* FAQ or Additional Info */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5, delay: 0.5 }}
+          className="text-center"
         >
-          Start Your Free Trial Today
-        </Button>
-      </motion.div>      {/* Paywall Modal */}
-      <PaywallComponent
-        isOpen={showPaywall}
-        onClose={() => setShowPaywall(false)}
-        selectedTier={selectedTier}
-        onSuccess={() => setShowPaywall(false)}
-        onCheckout={handleCheckout}
-      />
-
-      {/* Stripe Checkout Modal */}
-      {showCheckout && checkoutData && (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
-            <StripeCheckout
-              priceId={checkoutData.priceId}
-              planName={checkoutData.planName}
-              amount={checkoutData.amount}
-              billingCycle={checkoutData.billingCycle}
-              onSuccess={handleCheckoutSuccess}
-              onError={handleCheckoutError}
-              onCancel={() => {
-                setShowCheckout(false);
-                setCheckoutData(null);
-              }}
-            />
-          </div>
-        </div>
-      )}
+          <Card className="bg-gradient-to-r from-purple-50 to-pink-50 border-purple-200">
+            <CardContent className="p-8">
+              <h3 className="text-2xl font-bold text-gray-900 mb-4">
+                Need Help Choosing?
+              </h3>
+              <p className="text-gray-600 mb-6">
+                Our team is here to help you find the perfect plan for your needs.
+              </p>
+              <Button variant="outline" className="border-purple-300 text-purple-700 hover:bg-purple-50">
+                Contact Support
+              </Button>
+            </CardContent>
+          </Card>
+        </motion.div>
+      </div>
     </div>
   );
 };

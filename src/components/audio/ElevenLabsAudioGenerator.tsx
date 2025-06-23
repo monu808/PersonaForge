@@ -1,11 +1,12 @@
 import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Loader2, VolumeX, Volume2, AlertCircle } from 'lucide-react';
-import { createPersonaAudio, getAvailableVoices, ElevenLabsVoice } from '@/lib/api/elevenlabs';
+import { VoiceSelector } from './VoiceSelector';
+import { createPersonaAudio } from '@/lib/api/elevenlabs';
 import { syncService } from '@/lib/api/sync-service';
+import SubscriptionService from '@/lib/subscription/service';
 import { useEffect } from 'react';
 
 interface ElevenLabsAudioGeneratorProps {
@@ -17,34 +18,12 @@ export function ElevenLabsAudioGenerator({ personaId, onAudioGenerated }: Eleven
   // State for form
   const [text, setText] = useState<string>('');
   const [selectedVoice, setSelectedVoice] = useState<string>('');
-  const [voiceList, setVoiceList] = useState<ElevenLabsVoice[]>([]);
   const [isGenerating, setIsGenerating] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
   const [audioUrl, setAudioUrl] = useState<string | null>(null);
   const [audioElement, setAudioElement] = useState<HTMLAudioElement | null>(null);
   const [isPlaying, setIsPlaying] = useState<boolean>(false);
-  
-  // Load available voices on component mount
-  useEffect(() => {
-    async function loadVoices() {
-      try {
-        const voices = await getAvailableVoices();
-        setVoiceList(voices);
-        
-        // Set default voice if available
-        if (voices.length > 0 && !selectedVoice) {
-          setSelectedVoice(voices[0].id);
-        }
-      } catch (error) {
-        console.error('Error loading voices:', error);
-        setError('Failed to load available voices');
-      }
-    }
-    
-    loadVoices();
-  }, []);
-  
-  // Handle audio playback
+    // Handle audio playback
   useEffect(() => {
     if (audioUrl) {
       const audio = new Audio(audioUrl);
@@ -68,12 +47,23 @@ export function ElevenLabsAudioGenerator({ personaId, onAudioGenerated }: Eleven
       audioElement.pause();
     }
   };
-  
-  const handleSubmit = async (e: React.FormEvent) => {
+    const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
     if (!text.trim()) {
       setError('Please enter some text to generate speech');
+      return;
+    }
+
+    // Check if user can perform TTS action
+    try {
+      const permission = await SubscriptionService.canPerformAction('textToSpeech');
+      if (!permission.allowed) {
+        setError(permission.reason || 'You have reached your text-to-speech limit');
+        return;
+      }
+    } catch (error) {
+      setError('Error checking permissions');
       return;
     }
     
@@ -91,6 +81,9 @@ export function ElevenLabsAudioGenerator({ personaId, onAudioGenerated }: Eleven
       if (error) throw error;
         if (data?.metadata?.audio_url) {
         setAudioUrl(data.metadata.audio_url);
+        
+        // Increment usage after successful generation
+        await SubscriptionService.incrementUsage('textToSpeech', 1);
         
         // Log activity for sync
         await syncService.logActivity(
@@ -128,23 +121,12 @@ export function ElevenLabsAudioGenerator({ personaId, onAudioGenerated }: Eleven
       </CardHeader>
       <CardContent>
         {personaId ? (
-          <form onSubmit={handleSubmit} className="space-y-4">            <div>
-              <label className="block text-sm font-medium mb-2">Voice</label>
-              <Select value={selectedVoice} onValueChange={setSelectedVoice}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Select a voice">
-                    {selectedVoice ? voiceList.find(v => v.id === selectedVoice)?.name : "Select a voice"}
-                  </SelectValue>
-                </SelectTrigger>
-                <SelectContent>
-                  {voiceList.map((voice) => (
-                    <SelectItem key={voice.id} value={voice.id}>
-                      {voice.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+          <form onSubmit={handleSubmit} className="space-y-4">            <VoiceSelector
+              selectedVoiceId={selectedVoice}              onVoiceSelect={(voiceId) => {
+                setSelectedVoice(voiceId);
+              }}
+              label="Voice"
+            />
             
             <div>
               <label className="block text-sm font-medium mb-2">Text</label>

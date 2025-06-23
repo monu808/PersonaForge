@@ -5,6 +5,8 @@ import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Loader2, Upload, X, Mic, FileAudio } from 'lucide-react';
 import { createVoiceClone, VoiceCloneRequest } from '@/lib/api/elevenlabs';
+import UsageGate from '@/components/subscription/usage-gate';
+import SubscriptionService from '@/lib/subscription/service';
 
 interface VoiceCloneCreatorProps {
   onVoiceCreated?: (voiceId: string, voiceName: string) => void;
@@ -42,7 +44,6 @@ export function VoiceCloneCreator({ onVoiceCreated }: VoiceCloneCreatorProps) {
   const removeFile = (index: number) => {
     setFiles(prev => prev.filter((_, i) => i !== index));
   };
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
@@ -58,6 +59,18 @@ export function VoiceCloneCreator({ onVoiceCreated }: VoiceCloneCreatorProps) {
     
     if (files.length < 3) {
       setError('For best results, please provide at least 3 audio samples');
+      return;
+    }
+
+    // Check if user can perform voice cloning
+    try {
+      const permission = await SubscriptionService.canPerformAction('voiceCloning');
+      if (!permission.allowed) {
+        setError(permission.reason || 'Voice cloning is not available in your current plan');
+        return;
+      }
+    } catch (error) {
+      setError('Error checking permissions');
       return;
     }
 
@@ -77,6 +90,9 @@ export function VoiceCloneCreator({ onVoiceCreated }: VoiceCloneCreatorProps) {
       if (response.error) {
         throw new Error(response.error);
       }
+
+      // Increment usage after successful creation
+      await SubscriptionService.incrementUsage('voiceCloning', 1);
 
       setSuccess(`Voice "${response.name}" created successfully!`);
       setName('');
@@ -101,19 +117,19 @@ export function VoiceCloneCreator({ onVoiceCreated }: VoiceCloneCreatorProps) {
     const i = Math.floor(Math.log(bytes) / Math.log(k));
     return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
   };
-
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <Mic className="h-5 w-5" />
-          Clone Your Voice
-        </CardTitle>
-        <CardDescription>
-          Create a custom voice clone by uploading 3-5 high-quality audio samples (at least 1 minute each)
-        </CardDescription>
-      </CardHeader>
-      <CardContent>
+    <UsageGate action="voiceCloning">
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Mic className="h-5 w-5" />
+            Clone Your Voice
+          </CardTitle>
+          <CardDescription>
+            Create a custom voice clone by uploading 3-5 high-quality audio samples (at least 1 minute each)
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
         <form onSubmit={handleSubmit} className="space-y-6">
           {/* Voice Name */}
           <div className="space-y-2">
@@ -237,9 +253,9 @@ export function VoiceCloneCreator({ onVoiceCreated }: VoiceCloneCreatorProps) {
             ) : (
               'Create Voice Clone'
             )}
-          </Button>
-        </form>
+          </Button>        </form>
       </CardContent>
     </Card>
+    </UsageGate>
   );
 }

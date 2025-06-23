@@ -169,13 +169,13 @@ export const STORAGE_BUCKETS = {
 	PERSONA_CONTENT: 'persona-content',
 } as const;
 
-// File size limits (in bytes)
+// File size limits (in bytes) - Supabase storage server limits
 export const FILE_SIZE_LIMITS = {
-	TRAINING_VIDEO: 1073741824, // 1GB
+	TRAINING_VIDEO: 52428800, // 50MB (Supabase server limit)
 	AVATAR_IMAGE: 10485760, // 10MB
-	GENERATED_VIDEO: 2147483648, // 2GB
-	AUDIO_FILE: 524288000, // 500MB
-	CONVERSATION_RECORDING: 1073741824, // 1GB
+	GENERATED_VIDEO: 52428800, // 50MB  
+	AUDIO_FILE: 52428800, // 50MB
+	CONVERSATION_RECORDING: 52428800, // 50MB
 } as const;
 
 // Allowed MIME types for each bucket

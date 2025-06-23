@@ -182,58 +182,23 @@ export async function getAvailableVoices(): Promise<ElevenLabsVoice[]> {
     // Get session to check authentication
     const { data: sessionData } = await supabase.auth.getSession();
     const user = sessionData?.session?.user;
-    if (!user) throw new Error('Not authenticated');
     
-    // Direct API call to ElevenLabs for testing
-    const apiKey = import.meta.env.VITE_ELEVENLABS_API_KEY;
-    if (!apiKey) {
-      throw new Error('ElevenLabs API key not found');
+    if (!user) {
+      // Return only default public voices for unauthenticated users
+      return DEFAULT_PUBLIC_VOICES;
     }
-
-    const response = await fetch('https://api.elevenlabs.io/v1/voices', {
-      method: 'GET',
-      headers: {
-        'Accept': 'application/json',
-        'xi-api-key': apiKey,
-      },
-    });
-
-    if (!response.ok) {
-      const errorText = await response.text();
-      throw new Error(`ElevenLabs API error: ${response.status} - ${errorText}`);
-    }
-
-    const data = await response.json();
     
-    return data.voices?.map((voice: any) => ({
-      id: voice.voice_id,
-      name: voice.name,
-      category: voice.category || 'generated',
-      description: voice.description,
-      previewUrl: voice.preview_url,
-    })) || [];
-  } catch (error) {
-    console.error('Error fetching voices from ElevenLabs:', error);
-    // Return some default voices for fallback
-    return [
-      {
-        id: DEFAULT_VOICE_ID,
-        name: 'Rachel',
-        category: 'premade',
-        description: 'A calm and clear voice',
-      },
-      {
-        id: 'AZnzlk1XvdvUeBnXmlld',
-        name: 'Domi',
-        category: 'premade',
-        description: 'A confident and engaging voice',
-      },
-      {
-        id: 'EXAVITQu4vr4xnSDxMaL',
-        name: 'Bella',
-        category: 'premade',
-        description: 'A friendly and warm voice',
-      },    ];
+    // Get user's personal voices
+    const userVoices = await getUserVoices();
+    
+    // Combine default public voices with user's personal voices
+    // User voices come first for better UX
+    const allVoices = [...userVoices, ...DEFAULT_PUBLIC_VOICES];
+    
+    return allVoices;
+  } catch (error) {    console.error('Error fetching voices:', error);
+    // Return default voices as fallback
+    return DEFAULT_PUBLIC_VOICES;
   }
 }
 
@@ -407,7 +372,9 @@ export async function createVoiceClone(data: VoiceCloneRequest): Promise<VoiceCl
     
     if (data.description) {
       formData.append('description', data.description);
-    }    // Add audio files
+    }
+
+    // Add audio files
     data.files.forEach((file) => {
       formData.append('files', file, file.name);
     });
@@ -429,6 +396,24 @@ export async function createVoiceClone(data: VoiceCloneRequest): Promise<VoiceCl
 
     if (!response.ok) {
       throw new Error(responseData.detail?.message || `HTTP error! status: ${response.status}`);
+    }
+
+    // Save the cloned voice to user's database
+    const saveResult = await saveUserVoice({
+      voice_id: responseData.voice_id,
+      name: data.name,
+      description: data.description,
+      is_cloned: true,
+      metadata: {
+        preview_url: responseData.preview_url,
+        created_via: 'voice_clone',
+        file_count: data.files.length
+      }
+    });
+
+    if (!saveResult.success) {
+      console.warn('Voice created but failed to save to database:', saveResult.error);
+      // Don't fail the entire operation, just log the warning
     }
 
     return {
@@ -727,3 +712,192 @@ export async function deleteConversationalAgent(agentId: string): Promise<boolea
     return false;
   }
 }
+
+// --- User Voice Management Functions ---
+
+/**
+ * Save a user's voice to the database
+ */
+export async function saveUserVoice(voice: {
+  voice_id: string;
+  name: string;
+  description?: string;
+  is_cloned: boolean;
+  metadata?: any;
+}): Promise<{ success: boolean; error?: string }> {
+  try {
+    const { data: sessionData } = await supabase.auth.getSession();
+    const user = sessionData?.session?.user;
+    
+    if (!user) {
+      throw new Error('User not authenticated');
+    }
+
+    const { error } = await supabase
+      .from('user_voices')
+      .insert({
+        user_id: user.id,
+        voice_id: voice.voice_id,
+        name: voice.name,
+        description: voice.description,
+        platform: 'elevenlabs',
+        is_cloned: voice.is_cloned,
+        metadata: voice.metadata || {}
+      });
+
+    if (error) {
+      console.error('Error saving user voice:', error);
+      return { success: false, error: error.message };
+    }
+
+    return { success: true };
+  } catch (error) {
+    console.error('Error saving user voice:', error);
+    return { 
+      success: false, 
+      error: error instanceof Error ? error.message : 'Unknown error' 
+    };
+  }
+}
+
+/**
+ * Get user's personal voices from database
+ */
+export async function getUserVoices(): Promise<ElevenLabsVoice[]> {
+  try {
+    const { data: sessionData } = await supabase.auth.getSession();
+    const user = sessionData?.session?.user;
+    
+    if (!user) {
+      return [];
+    }
+
+    const { data, error } = await supabase
+      .from('user_voices')
+      .select('*')
+      .eq('user_id', user.id)
+      .eq('platform', 'elevenlabs')
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      console.error('Error fetching user voices:', error);
+      return [];
+    }
+
+    return data?.map(voice => ({
+      id: voice.voice_id,
+      name: voice.name,
+      category: voice.is_cloned ? 'cloned' : 'custom',
+      description: voice.description,
+      previewUrl: voice.metadata?.preview_url
+    })) || [];
+  } catch (error) {
+    console.error('Error fetching user voices:', error);
+    return [];
+  }
+}
+
+/**
+ * Delete a user's voice from both database and ElevenLabs
+ */
+export async function deleteUserVoice(voiceId: string): Promise<{ success: boolean; error?: string }> {
+  try {
+    const { data: sessionData } = await supabase.auth.getSession();
+    const user = sessionData?.session?.user;
+    
+    if (!user) {
+      throw new Error('User not authenticated');
+    }
+
+    // First, delete from ElevenLabs API if it's a cloned voice
+    const { data: voiceData } = await supabase
+      .from('user_voices')
+      .select('is_cloned')
+      .eq('user_id', user.id)
+      .eq('voice_id', voiceId)
+      .single();
+
+    if (voiceData?.is_cloned) {
+      const apiKey = import.meta.env.VITE_ELEVENLABS_API_KEY;
+      if (apiKey) {
+        try {
+          await fetch(`https://api.elevenlabs.io/v1/voices/${voiceId}`, {
+            method: 'DELETE',
+            headers: {
+              'xi-api-key': apiKey,
+            },
+          });
+        } catch (error) {
+          console.warn('Error deleting voice from ElevenLabs:', error);
+          // Continue with database deletion even if API call fails
+        }
+      }
+    }
+
+    // Delete from database
+    const { error } = await supabase
+      .from('user_voices')
+      .delete()
+      .eq('user_id', user.id)
+      .eq('voice_id', voiceId);
+
+    if (error) {
+      console.error('Error deleting user voice:', error);
+      return { success: false, error: error.message };
+    }
+
+    return { success: true };
+  } catch (error) {
+    console.error('Error deleting user voice:', error);
+    return { 
+      success: false, 
+      error: error instanceof Error ? error.message : 'Unknown error' 
+    };
+  }
+}
+
+// Default/public voices that all users can see
+const DEFAULT_PUBLIC_VOICES: ElevenLabsVoice[] = [
+  {
+    id: '21m00Tcm4TlvDq8ikWAM',
+    name: 'Rachel',
+    category: 'default',
+    description: 'Professional female voice with a clear, articulate tone',
+    previewUrl: 'https://storage.googleapis.com/eleven-public-prod/premade/voices/21m00Tcm4TlvDq8ikWAM/df6788f9-5c96-470d-8312-aab3b3d8f50a.mp3'
+  },
+  {
+    id: 'AZnzlk1XvdvUeBnXmlld',
+    name: 'Domi',
+    category: 'default', 
+    description: 'Professional male voice with a warm, engaging tone',
+    previewUrl: 'https://storage.googleapis.com/eleven-public-prod/premade/voices/AZnzlk1XvdvUeBnXmlld/e8b3469c-5d75-4b2e-8c6e-4db9dc3c19ad.mp3'
+  },
+  {
+    id: 'EXAVITQu4vr4xnSDxMaL',
+    name: 'Bella',
+    category: 'default',
+    description: 'Young female voice with an expressive and confident tone',
+    previewUrl: 'https://storage.googleapis.com/eleven-public-prod/premade/voices/EXAVITQu4vr4xnSDxMaL/532b7b7c-6c8a-4ee0-9ac8-14a20e7d3aa5.mp3'
+  },
+  {
+    id: 'ErXwobaYiN019PkySvjV',
+    name: 'Antoni',
+    category: 'default',
+    description: 'Deep male voice with an authoritative and calming presence',
+    previewUrl: 'https://storage.googleapis.com/eleven-public-prod/premade/voices/ErXwobaYiN019PkySvjV/6d1d1774-d052-4d3c-8240-0e87b28b2c0b.mp3'
+  },
+  {
+    id: 'MF3mGyEYCl7XYWbV9V6O',
+    name: 'Elli',
+    category: 'default',
+    description: 'Young female voice with an emotional and expressive delivery',
+    previewUrl: 'https://storage.googleapis.com/eleven-public-prod/premade/voices/MF3mGyEYCl7XYWbV9V6O/2f50d1e7-9826-4238-b6db-a5fa0e1d1e2e.mp3'
+  },
+  {
+    id: 'TxGEqnHWrfWFTfGW9XjX',
+    name: 'Josh',
+    category: 'default',
+    description: 'Professional male voice with a clear, engaging tone',
+    previewUrl: 'https://storage.googleapis.com/eleven-public-prod/premade/voices/TxGEqnHWrfWFTfGW9XjX/c9f4b2a8-9f41-4c5d-8f1e-8e8e8e8e8e8.mp3'
+  }
+];
