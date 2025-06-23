@@ -132,15 +132,13 @@ export default function ResetPasswordPage() {
 
       if (error) {
         throw error;
-      }
-
-      console.log('✅ Password updated successfully');
+      }      console.log('✅ Password updated successfully');
       setStatus('success');
       setMessage('Your password has been updated successfully!');
 
-      // Redirect to sign-in after a moment
+      // Redirect to coruscant after a moment (user is already authenticated)
       setTimeout(() => {
-        navigate('/auth/sign-in', { replace: true });
+        navigate('/coruscant', { replace: true });
       }, 3000);
 
     } catch (error) {
@@ -265,9 +263,8 @@ export default function ResetPasswordPage() {
               </h3>
               <p className="text-gray-600 mb-6 text-sm">
                 {message}
-              </p>
-              <p className="text-sm text-gray-500">
-                Redirecting to sign in...
+              </p>              <p className="text-sm text-gray-500">
+                Redirecting to your dashboard...
               </p>
             </div>
           )}

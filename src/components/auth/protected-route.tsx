@@ -32,10 +32,9 @@ export const PublicOnlyRoute = ({ children }: { children: React.ReactNode }) => 
       </div>
     );
   }
-
-  // If user is already logged in, redirect to dashboard
+  // If user is already logged in, redirect to coruscant
   if (user) {
-    return <Navigate to="/dashboard" replace />;
+    return <Navigate to="/coruscant" replace />;
   }
 
   return <>{children}</>;

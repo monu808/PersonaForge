@@ -40,9 +40,9 @@ export function AuthForm({ mode }: AuthFormProps) {
         const { data: authData, error } = await signIn(data);
         if (error) throw error;
         if (authData?.user) {
-          navigate('/dashboard', { replace: true });
+          navigate('/coruscant', { replace: true });
         }
-      }    } catch (err) {
+      }} catch (err) {
       const error = err as Error;
       if (error.message === 'User already registered') {
         setError('This email is already registered. Please sign in instead.');

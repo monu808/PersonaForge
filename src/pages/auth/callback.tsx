@@ -37,12 +37,10 @@ export default function AuthCallbackPage() {
           console.error('Auth callback error:', error);
           navigate('/auth/sign-in?error=callback_failed');
           return;
-        }
-
-        if (data?.session) {
-          console.log('Session found, redirecting to dashboard');
-          // User is authenticated, redirect to dashboard
-          navigate('/dashboard', { replace: true });
+        }        if (data?.session) {
+          console.log('Session found, redirecting to coruscant');
+          // User is authenticated, redirect to coruscant
+          navigate('/coruscant', { replace: true });
         } else {
           console.log('No session found, redirecting to sign in');
           // No session found, redirect to sign in

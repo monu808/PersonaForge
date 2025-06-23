@@ -98,3 +98,31 @@
   -webkit-box-orient: vertical;
   overflow: hidden;
 }
+
+/* Ensure wallet popups appear above modals */
+/* Pera Wallet modal */
+div[data-testid="modal-overlay"],
+div[id*="pera"],
+div[class*="pera"],
+div[class*="wallet"],
+.pera-wallet-modal,
+.pera-wallet-overlay,
+/* WalletConnect modals */
+div[id*="walletconnect"],
+div[class*="walletconnect"],
+/* AlgoSigner modals */
+div[id*="algosigner"],
+div[class*="algosigner"],
+/* Generic wallet modals */
+div[role="dialog"][style*="z-index"],
+div[class*="modal"][style*="z-index"] {
+  z-index: 10000 !important;
+}
+
+/* Ensure wallet popups have higher z-index than our service modal */
+div[id*="pera-wallet"],
+div[class*="pera-wallet"],
+.pera-wallet-connect-modal,
+.pera-wallet-redirect-modal {
+  z-index: 10000 !important;
+}

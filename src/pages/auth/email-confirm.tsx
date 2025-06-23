@@ -36,21 +36,17 @@ export default function EmailConfirmPage() {
 
           if (error) {
             throw error;
-          }
-
-          if (data?.user && data?.session) {
+          }          if (data?.user && data?.session) {
             setStatus('success');
             setMessage('Your email has been confirmed successfully! You can now access your account.');
             
-            // Wait a moment then redirect to dashboard
+            // Wait a moment then redirect to coruscant
             setTimeout(() => {
-              navigate('/dashboard', { replace: true });
+              navigate('/coruscant', { replace: true });
             }, 2000);
             return;
           }
-        }
-
-        // Method 2: Use token/token_hash with verifyOtp
+        }// Method 2: Use token/token_hash with verifyOtp
         if (token) {
           console.log('Verifying OTP with token');
           const { data, error } = await supabase.auth.verifyOtp({
@@ -66,9 +62,9 @@ export default function EmailConfirmPage() {
             setStatus('success');
             setMessage('Your email has been confirmed successfully! You can now access your account.');
             
-            // Wait a moment then redirect to dashboard
+            // Wait a moment then redirect to coruscant
             setTimeout(() => {
-              navigate('/dashboard', { replace: true });
+              navigate('/coruscant', { replace: true });
             }, 2000);
             return;
           }
@@ -78,11 +74,10 @@ export default function EmailConfirmPage() {
         const { data: sessionData } = await supabase.auth.getSession();
         if (sessionData?.session?.user) {
           console.log('User already has active session');
-          setStatus('success');
-          setMessage('Your email has been confirmed and you are already signed in!');
+          setStatus('success');          setMessage('Your email has been confirmed and you are already signed in!');
           
           setTimeout(() => {
-            navigate('/dashboard', { replace: true });
+            navigate('/coruscant', { replace: true });
           }, 2000);
           return;
         }

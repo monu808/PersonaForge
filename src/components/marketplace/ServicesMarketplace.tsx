@@ -453,7 +453,7 @@ export function ServicesMarketplace() {
       {showServiceModal && selectedService && createPortal(
         <div 
           className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center p-6"
-          style={{ zIndex: 2147483647 }}
+          style={{ zIndex: 1000 }}
         >
           <motion.div
             className="bg-slate-800 rounded-2xl w-full max-w-4xl shadow-2xl border border-white/20"
@@ -461,7 +461,7 @@ export function ServicesMarketplace() {
               height: '80vh', 
               minHeight: '600px', 
               maxHeight: '90vh',
-              zIndex: 2147483647
+              zIndex: 1001
             }}
             initial={{ scale: 0.9, opacity: 0 }}
             animate={{ scale: 1, opacity: 1 }}
