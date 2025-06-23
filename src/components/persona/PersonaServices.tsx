@@ -39,7 +39,8 @@ import {
   getConnectedWallet, 
   isWalletConnected,
   getAccountBalance,
-  payForService
+  payForService,
+  initializeWalletFromDatabase
 } from '@/lib/api/algorand';
 import type { PersonaService } from '@/lib/api/algorand';
 
@@ -150,18 +151,32 @@ export function PersonaServices({ persona, isOwner, onServicePurchased }: Person
     } finally {
       setLoading(false);
     }
-  };
-
-  const initializeWallet = async () => {
-    const connected = isWalletConnected();
-    if (connected) {
-      const address = getConnectedWallet();
-      setWalletAddress(address);
+  };  const initializeWallet = async () => {
+    try {
+      // Get wallet from database
+      const dbWalletAddress = await initializeWalletFromDatabase();
       
-      if (address) {
-        const { balance } = await getAccountBalance(address);
-        setWalletBalance(balance);
+      if (dbWalletAddress) {
+        console.log('Wallet loaded from database:', dbWalletAddress);
+        setWalletAddress(dbWalletAddress);
+        
+        // Get balance for the wallet
+        try {
+          const { balance } = await getAccountBalance(dbWalletAddress);
+          setWalletBalance(balance);
+        } catch (error) {
+          console.error('Error getting wallet balance:', error);
+          setWalletBalance(0);
+        }
+      } else {
+        console.log('No wallet found in database');
+        setWalletAddress(null);
+        setWalletBalance(0);
       }
+    } catch (error) {
+      console.error('Error initializing wallet from database:', error);
+      setWalletAddress(null);
+      setWalletBalance(0);
     }
   };
 
@@ -217,12 +232,27 @@ export function PersonaServices({ persona, isOwner, onServicePurchased }: Person
         variant: "destructive"
       });
       return;
-    }
+    }    try {
+      // Handle file upload first if there's a file
+      let fileUrl = formData.delivery_url;
+      if (formData.uploaded_file) {
+        // For now, we'll just use the file name as a placeholder
+        // In a real implementation, you'd upload to storage and get the URL
+        fileUrl = `uploads/${formData.uploaded_file.name}`;
+      }
 
-    try {
       const serviceData = {
         persona_id: persona.id,
-        ...formData,
+        service_name: formData.service_name,
+        description: formData.description,
+        price_algo: formData.price_algo,
+        price_usd: formData.price_usd,
+        service_type: formData.service_type,
+        duration_minutes: formData.duration_minutes,
+        delivery_content: formData.delivery_content,
+        delivery_url: fileUrl,
+        file_type: formData.file_type,
+        auto_delivery: formData.auto_delivery,
         creator_wallet: walletAddress || '',
         is_active: true
       };

@@ -96,6 +96,10 @@ export async function signInWithGoogle() {
 
 export async function signOut() {
   try {
+    // Clear wallet connections before signing out
+    const { clearWalletConnectionsOnSignOut } = await import('./api/algorand');
+    await clearWalletConnectionsOnSignOut();
+    
     // First, sign out from Supabase
     const { error } = await supabase.auth.signOut();
     if (error) throw error;

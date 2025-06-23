@@ -1,5 +1,6 @@
 import algosdk from 'algosdk';
 import { PeraWalletConnect } from '@perawallet/connect';
+import { supabase } from '../auth';
 // Enhanced Nodely integration
 import { 
   algodClient, 
@@ -100,8 +101,8 @@ export async function connectWallet(): Promise<{ success: boolean; address?: str
       const address = accounts[0];
       console.log('Wallet connected successfully:', address);
       
-      // Store the connected account in localStorage
-      localStorage.setItem('algorand_wallet', address);
+      // Store wallet connection in database for current user
+      await storeWalletConnection(address);
       
       return {
         success: true,
@@ -128,7 +129,9 @@ export async function connectWallet(): Promise<{ success: boolean; address?: str
 export async function disconnectWallet(): Promise<void> {
   try {
     await peraWallet.disconnect();
-    localStorage.removeItem('algorand_wallet');
+    
+    // Remove wallet connection from database for current user
+    await removeWalletConnection();
   } catch (error) {
     console.error('Error disconnecting wallet:', error);
   }
@@ -137,15 +140,16 @@ export async function disconnectWallet(): Promise<void> {
 /**
  * Get connected wallet address
  */
-export function getConnectedWallet(): string | null {
-  return localStorage.getItem('algorand_wallet');
+export async function getConnectedWallet(): Promise<string | null> {
+  return await getUserWalletAddress();
 }
 
 /**
  * Check if wallet is connected
  */
-export function isWalletConnected(): boolean {
-  return getConnectedWallet() !== null;
+export async function isWalletConnected(): Promise<boolean> {
+  const address = await getUserWalletAddress();
+  return address !== null;
 }
 
 /**
@@ -203,7 +207,7 @@ export async function createPaymentTransaction(
  */
 export async function processServicePayment(paymentRequest: PaymentRequest): Promise<PaymentResult> {
   try {
-    const connectedWallet = getConnectedWallet();
+    const connectedWallet = await getConnectedWallet();
     
     if (!connectedWallet) {
       return {
@@ -332,12 +336,11 @@ export async function payForService(paymentRequest: PaymentRequest): Promise<Pay
         error: txnError || 'Failed to create transaction'
       };
     }    console.log('Transaction created successfully, now signing with wallet...');
-    
-    // Ensure wallet is initialized before signing
+      // Ensure wallet is initialized before signing
     await initializeWallet();
     
     // Sign transaction with Pera Wallet
-    const connectedWallet = getConnectedWallet();
+    const connectedWallet = await getConnectedWallet();
     if (!connectedWallet) {
       return {
         success: false,
@@ -645,4 +648,131 @@ export async function convertUsdToAlgo(usdAmount: number): Promise<number> {
 export async function convertAlgoToUsd(algoAmount: number): Promise<number> {
   const rate = await getAlgoToUsdRate();
   return algoAmount * rate;
+}
+
+// Wallet connection management functions
+async function storeWalletConnection(walletAddress: string): Promise<void> {
+  try {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
+      console.error('No authenticated user found');
+      return;
+    }
+
+    // Update user's wallet address in the database (users table, not profiles)
+    const { error } = await supabase
+      .from('users')
+      .update({
+        wallet_address: walletAddress
+      })
+      .eq('id', user.id);
+
+    if (error) {
+      console.error('Error storing wallet connection:', error);
+      throw error;
+    } else {
+      console.log('Wallet connection stored successfully in database for user:', user.id);
+      // Remove localStorage fallback - we only use database now
+    }
+  } catch (error) {
+    console.error('Error in storeWalletConnection:', error);
+    throw error;
+  }
+}
+
+async function removeWalletConnection(): Promise<void> {
+  try {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
+      console.error('No authenticated user found');
+      return;
+    }
+
+    // Remove wallet address from database (users table, not profiles)
+    const { error } = await supabase
+      .from('users')
+      .update({
+        wallet_address: null
+      })
+      .eq('id', user.id);
+
+    if (error) {
+      console.error('Error removing wallet connection:', error);
+    } else {
+      console.log('Wallet connection removed successfully from database for user:', user.id);
+    }
+
+    // Clean up any localStorage entries (for migration purposes)
+    localStorage.removeItem(`algorand_wallet_${user.id}`);
+    localStorage.removeItem('algorand_wallet');
+  } catch (error) {
+    console.error('Error in removeWalletConnection:', error);
+  }
+}
+
+async function getUserWalletAddress(): Promise<string | null> {
+  try {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
+      return null;
+    }
+
+    // Get wallet address from database (users table, not profiles)
+    const { data, error } = await supabase
+      .from('users')
+      .select('wallet_address')
+      .eq('id', user.id)
+      .single();
+
+    if (!error && data?.wallet_address) {
+      console.log('Retrieved wallet from database for user:', user.id, 'address:', data.wallet_address);
+      return data.wallet_address;
+    }
+
+    console.log('No wallet found in database for user:', user.id);
+    return null;
+  } catch (error) {
+    console.error('Error getting user wallet address:', error);
+    return null;
+  }
+}
+
+// Function to clear wallet connections when user signs out
+export async function clearWalletConnectionsOnSignOut(): Promise<void> {
+  try {
+    // Clear all wallet-related localStorage items
+    const keys = Object.keys(localStorage);
+    keys.forEach(key => {
+      if (key.startsWith('algorand_wallet')) {
+        localStorage.removeItem(key);
+      }
+    });
+    
+    console.log('Cleared wallet connections on sign out');
+  } catch (error) {
+    console.error('Error clearing wallet connections:', error);
+  }
+}
+
+// Function to initialize wallet connection from database
+export async function initializeWalletFromDatabase(): Promise<string | null> {
+  try {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
+      console.log('No authenticated user found for wallet initialization');
+      return null;
+    }
+
+    const walletAddress = await getUserWalletAddress();
+    if (walletAddress) {
+      console.log('Wallet found in database for user:', user.id, 'address:', walletAddress);
+      return walletAddress;
+    }
+
+    console.log('No wallet connection found in database for user:', user.id);
+    return null;
+  } catch (error) {
+    console.error('Error initializing wallet from database:', error);
+    return null;
+  }
 }

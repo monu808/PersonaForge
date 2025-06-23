@@ -28,6 +28,8 @@ import SystemStatusPage from './pages/system-status';
 import GrantEnterpriseAccess from './components/admin/GrantEnterpriseAccess';
 import DatabaseDiagnosticPage from './pages/database-diagnostic';
 import PasswordResetTestPage from './pages/password-reset-test';
+import WalletDiagnosticPage from './pages/wallet-diagnostic';
+import AboutPage from './pages/about';
 import { AuthProvider } from './lib/context/auth-context';
 import { SubscriptionProvider } from './lib/revenuecat/context';
 import { ProtectedRoute } from './components/auth/protected-route';
@@ -63,16 +65,16 @@ function App() {
             <Route path="/auth/sign-up" element={<SignUpPage />} />
             <Route path="/auth/callback" element={<AuthCallbackPage />} />
             <Route path="/auth/email-confirm" element={<EmailConfirmPage />} />            <Route path="/auth/forgot-password" element={<ForgotPasswordPage />} />
-            <Route path="/auth/reset-password" element={<ResetPasswordPage />} />
-            <Route path="/debug/database" element={<DatabaseDiagnosticPage />} />
+            <Route path="/auth/reset-password" element={<ResetPasswordPage />} />            <Route path="/debug/database" element={<DatabaseDiagnosticPage />} />
             <Route path="/debug/password-reset" element={<PasswordResetTestPage />} />
+            <Route path="/debug/wallet" element={<WalletDiagnosticPage />} />
             <Route path="/neurovia" element={
               <ProtectedRoute>
                 <Neurovia />
               </ProtectedRoute>
-            } />
-            <Route path="/" element={<Layout />}>
+            } />            <Route path="/" element={<Layout />}>
               <Route index element={<HomePage />} />
+              <Route path="about" element={<AboutPage />} />
               <Route path="pricing" element={<PricingPage />} />
               <Route path="payment/success" element={
                 <ProtectedRoute>
@@ -158,8 +160,7 @@ function App() {
                   <ProfilePage />
                 </ProtectedRoute>
               } />
-              <Route path="database-diagnostic" element={
-                <ProtectedRoute>
+              <Route path="database-diagnostic" element={                <ProtectedRoute>
                   <DatabaseDiagnosticPage />
                 </ProtectedRoute>
               } />

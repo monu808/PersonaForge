@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { motion } from 'framer-motion';
 import { 
   ShoppingBag, 
@@ -11,12 +12,10 @@ import {
   Edit3,
   Clock,
   CreditCard,
-  Wallet,
-  Star,
+  Wallet,  Star,
   User
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { ScrollArea } from '@/components/ui/scroll-area';
 import { toast } from '@/components/ui/use-toast';
 import { PersonaServices } from '@/components/persona/PersonaServices';
 import { 
@@ -27,7 +26,8 @@ import {
   disconnectWallet, 
   getConnectedWallet, 
   isWalletConnected,
-  getAccountBalance
+  getAccountBalance,
+  initializeWalletFromDatabase
 } from '@/lib/api/algorand';
 import type { PersonaService } from '@/lib/api/algorand';
 
@@ -108,18 +108,32 @@ export function ServicesMarketplace() {
     } finally {
       setLoading(false);
     }
-  };
-
-  const initializeWallet = async () => {
-    const connected = isWalletConnected();
-    if (connected) {
-      const address = getConnectedWallet();
-      setWalletAddress(address);
+  };  const initializeWallet = async () => {
+    try {
+      // Get wallet from database
+      const dbWalletAddress = await initializeWalletFromDatabase();
       
-      if (address) {
-        const { balance } = await getAccountBalance(address);
-        setWalletBalance(balance);
+      if (dbWalletAddress) {
+        console.log('Wallet loaded from database:', dbWalletAddress);
+        setWalletAddress(dbWalletAddress);
+        
+        // Get balance for the wallet
+        try {
+          const { balance } = await getAccountBalance(dbWalletAddress);
+          setWalletBalance(balance);
+        } catch (error) {
+          console.error('Error getting wallet balance:', error);
+          setWalletBalance(0);
+        }
+      } else {
+        console.log('No wallet found in database');
+        setWalletAddress(null);
+        setWalletBalance(0);
       }
+    } catch (error) {
+      console.error('Error initializing wallet from database:', error);
+      setWalletAddress(null);
+      setWalletBalance(0);
     }
   };
 
@@ -215,6 +229,16 @@ export function ServicesMarketplace() {
     setShowServiceModal(false);
   };
 
+  const modalStyles = `
+    .service-modal-container * {
+      position: relative !important;
+    }
+    .service-modal-container .fixed,
+    .service-modal-container .absolute {
+      position: relative !important;
+    }
+  `;
+
   if (loading) {
     return (
       <div className="flex items-center justify-center py-12">
@@ -225,9 +249,9 @@ export function ServicesMarketplace() {
       </div>
     );
   }
-
   return (
     <div className="space-y-6">
+      <style>{modalStyles}</style>
       {/* Header */}
       <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4">
         <div>
@@ -425,32 +449,40 @@ export function ServicesMarketplace() {
             );
           })}
         </div>
-      )}      {/* Service Detail Modal */}
-      {showServiceModal && selectedService && (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+      )}      {/* Service Detail Modal - Rendered as Portal */}
+      {showServiceModal && selectedService && createPortal(
+        <div 
+          className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center p-6"
+          style={{ zIndex: 2147483647 }}
+        >
           <motion.div
-            className="bg-slate-800 rounded-2xl w-full max-w-2xl border border-white/10 max-h-[85vh] flex flex-col"
+            className="bg-slate-800 rounded-2xl w-full max-w-4xl shadow-2xl border border-white/20"
+            style={{ 
+              height: '80vh', 
+              minHeight: '600px', 
+              maxHeight: '90vh',
+              zIndex: 2147483647
+            }}
             initial={{ scale: 0.9, opacity: 0 }}
             animate={{ scale: 1, opacity: 1 }}
             exit={{ scale: 0.9, opacity: 0 }}
           >
             {/* Fixed Header */}
-            <div className="p-6 pb-4 border-b border-white/10 shrink-0">
-              <div className="flex justify-between items-start">
+            <div className="p-6 border-b border-white/20 bg-slate-800 rounded-t-2xl">
+              <div className="flex justify-between items-center">
                 <h3 className="text-2xl font-bold text-white">Service Details</h3>
                 <button
                   onClick={closeServiceModal}
-                  className="text-white/60 hover:text-white transition-colors"
+                  className="text-white/60 hover:text-white transition-colors text-2xl"
                 >
                   ✕
                 </button>
               </div>
             </div>
 
-            {/* Scrollable Content */}
-            <ScrollArea className="flex-1 px-6">
-              <div className="py-4">
-                {/* Use PersonaServices component in purchase mode */}
+            {/* Content Area */}
+            <div className="bg-slate-800 rounded-b-2xl" style={{ height: 'calc(80vh - 100px)' }}>
+              <div className="h-full overflow-y-auto p-6">
                 <PersonaServices 
                   persona={{ 
                     id: selectedService.persona_id, 
@@ -464,9 +496,10 @@ export function ServicesMarketplace() {
                   }}
                 />
               </div>
-            </ScrollArea>
+            </div>
           </motion.div>
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );

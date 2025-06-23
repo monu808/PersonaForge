@@ -39,7 +39,8 @@ import {
 import { 
   connectWallet, 
   getConnectedWallet, 
-  isWalletConnected 
+  isWalletConnected,
+  initializeWalletFromDatabase
 } from '@/lib/api/algorand';
 import type { PersonaService } from '@/lib/api/algorand';
 import EnhancedAnalyticsDashboard from '@/components/analytics/EnhancedAnalyticsDashboard';
@@ -135,23 +136,21 @@ export default function PersonaMonetization({ replicas }: PersonaMonetizationPro
     } finally {
       setLoading(false);
     }
-  };
-
-  const initializeWallet = async () => {
-    const connected = isWalletConnected();
-    if (connected) {
-      const address = getConnectedWallet();
-      setWalletAddress(address);
-    } else {
-      // Try to connect wallet automatically
-      try {
-        const result = await connectWallet();
-        if (result.success && result.address) {
-          setWalletAddress(result.address);
-        }
-      } catch (error) {
-        console.error('Auto-connect wallet failed:', error);
+  };  const initializeWallet = async () => {
+    try {
+      // Get wallet from database
+      const dbWalletAddress = await initializeWalletFromDatabase();
+      
+      if (dbWalletAddress) {
+        console.log('Wallet loaded from database:', dbWalletAddress);
+        setWalletAddress(dbWalletAddress);
+      } else {
+        console.log('No wallet found in database');
+        setWalletAddress(null);
       }
+    } catch (error) {
+      console.error('Error initializing wallet from database:', error);
+      setWalletAddress(null);
     }
   };
 
