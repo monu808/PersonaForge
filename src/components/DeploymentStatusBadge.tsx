@@ -5,11 +5,15 @@ import { Loader2 } from 'lucide-react';
 export function getDeploymentStatus() {
   return new Promise<{ id: string }>(async (resolve) => {
     try {
-      const response = await fetch('/api/deployment-status');
+      const url = '/.netlify/functions/deployment-status';
+      console.log('🔍 Fetching deployment status from:', url);
+      const response = await fetch(url);
+      console.log('📡 Response status:', response.status, response.statusText);
       const data = await response.json();
+      console.log('📊 Response data:', data);
       resolve(data);
     } catch (error) {
-      console.error('Error fetching deployment status:', error);
+      console.error('❌ Error fetching deployment status:', error);
       resolve({ id: 'unknown' });
     }
   });

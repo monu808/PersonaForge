@@ -25,17 +25,39 @@ interface ChatResponse {
 }
 
 class SecureAIService {
-  private baseUrl: string;
-
-  constructor() {
-    // Use different URLs for development and production
-    if (import.meta.env.DEV) {
-      // Development: Use Netlify Dev server
-      this.baseUrl = 'http://localhost:8888/.netlify/functions';
-    } else {
-      // Production: Use Netlify Functions URL
+  private baseUrl: string;  constructor() {
+    // Environment detection for API endpoints
+    if (typeof window === 'undefined') {
+      // Server-side (should not happen in browser)
       this.baseUrl = '/.netlify/functions';
+    } else {
+      // Client-side environment detection
+      const hostname = window.location.hostname;
+      const port = window.location.port;
+      const isDev = import.meta.env.DEV;
+      
+      if (isDev && hostname === 'localhost') {
+        if (port === '8888') {
+          // Running with Netlify Dev - functions available
+          this.baseUrl = 'http://localhost:8888/.netlify/functions';
+        } else if (port === '5173') {
+          // Running with Vite dev server - need to proxy to Netlify Dev
+          console.warn('⚠️ Running on Vite dev server. Functions may not be available.');
+          console.warn('💡 For full functionality, use: npm run netlify:dev');
+          // Try to connect to default Netlify dev port
+          this.baseUrl = 'http://localhost:8888/.netlify/functions';
+        } else {
+          // Other local dev setup
+          this.baseUrl = '/.netlify/functions';
+        }
+      } else {
+        // Production or other environments
+        this.baseUrl = '/.netlify/functions';
+      }
     }
+    
+    console.log('SecureAIService initialized with baseUrl:', this.baseUrl);
+    console.log('Current environment - hostname:', window?.location?.hostname, 'port:', window?.location?.port, 'isDev:', import.meta.env.DEV);
   }
 
   private async makeRequest(endpoint: string, data: any): Promise<any> {
