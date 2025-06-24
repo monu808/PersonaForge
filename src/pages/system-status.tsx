@@ -119,25 +119,34 @@ export default function SystemStatusDashboard() {
         status: 'outage',
         message: 'Tavus API unreachable'
       });
-    }
-
-    // Check Google Gemini API
+    }    // Check Google Gemini API via secure health check
     try {
-      if (!import.meta.env.VITE_GOOGLE_GEMINI_API_KEY) {
+      const response = await fetch('/.netlify/functions/health-check', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          service: 'gemini'
+        }),
+      });
+
+      if (response.ok) {
+        const data = await response.json();
         updateSystemStatus(5, {
-          status: 'outage',
-          message: 'Google Gemini API key not configured'
+          status: data.success ? 'operational' : 'degraded',
+          message: data.message || 'Google Gemini API health check completed'
         });
       } else {
         updateSystemStatus(5, {
-          status: 'operational',
-          message: 'Google Gemini API configured'
+          status: 'degraded',
+          message: 'Google Gemini API health check failed'
         });
       }
     } catch (error) {
       updateSystemStatus(5, {
         status: 'outage',
-        message: 'Google Gemini API error'
+        message: 'Google Gemini API health check error'
       });
     }
 

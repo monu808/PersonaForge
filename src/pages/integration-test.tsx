@@ -209,13 +209,31 @@ export default function IntegrationTestDashboard() {
         const response = await supabase.functions.invoke('elevenlabs-voices');
         if (response.error) throw response.error;
         return 'ElevenLabs API accessible';
-      },
-      async () => {
-        updateTestResult(suiteIndex, 2, { status: 'running', message: 'Testing Gemini Chat...' });
-        if (!import.meta.env.VITE_GOOGLE_GEMINI_API_KEY) {
-          throw new Error('Google Gemini API key not configured');
+      },      async () => {
+        updateTestResult(suiteIndex, 2, { status: 'running', message: 'Testing Gemini Chat via secure API...' });
+        
+        const response = await fetch('/.netlify/functions/gemini-chat', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            message: 'Hello, this is a test message',
+            chatHistory: [],
+            config: {}
+          }),
+        });
+
+        if (!response.ok) {
+          throw new Error(`Gemini API test failed: ${response.status}`);
         }
-        return 'Gemini API configured';
+
+        const data = await response.json();
+        if (!data.success) {
+          throw new Error(data.error || 'Gemini API test failed');
+        }
+
+        return 'Gemini API accessible via secure endpoint';
       },
       async () => {
         updateTestResult(suiteIndex, 3, { status: 'running', message: 'Checking replica status...' });

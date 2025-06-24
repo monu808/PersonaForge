@@ -1,0 +1,19 @@
+[build]
+  command = "npm run build"
+  functions = "netlify/functions"
+  publish = "dist"
+
+[dev]
+  command = "npm run dev"
+  targetPort = 5173
+  port = 8888
+  autoLaunch = false
+
+[[plugins]]
+  package = "@netlify/plugin-functions-install-core"
+
+[functions]
+  external_node_modules = ["@google/generative-ai"]
+
+[build.environment]
+  NODE_VERSION = "18"

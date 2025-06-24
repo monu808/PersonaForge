@@ -1,5 +1,43 @@
 // Secure Gemini AI integration for persona chatting
-import SecureAIService from './secure-ai-service';
+import { SecureAIService } from './secure-ai-service';
+
+// Types
+export interface ChatMessage {
+  id: string;
+  role: 'user' | 'assistant';
+  content: string;
+  timestamp: Date;
+  persona_id?: string;
+}
+
+export interface PersonaChat {
+  id: string;
+  persona_id: string;
+  persona_name: string;
+  messages: ChatMessage[];
+  created_at: Date;
+  updated_at: Date;
+}
+
+export interface ChatConfig {
+  persona_id: string;
+  persona_name: string;
+  persona_description?: string;
+  persona_traits?: string[];
+  system_prompt?: string;
+  context?: string;
+}
+
+class GeminiChatService {
+  private secureAI: SecureAIService;
+  private activeSessions: Map<string, any> = new Map();
+  
+  constructor() {
+    this.secureAI = new SecureAIService();
+  }
+
+  // Initialize chat session for a persona// Secure Gemini AI integration for persona chatting
+import { SecureAIService } from './secure-ai-service';
 
 // Types
 export interface ChatMessage {
@@ -88,7 +126,7 @@ class GeminiChatService {
       session.messages.push(userMessage);
 
       // Prepare chat history for the API
-      const chatHistory = session.messages.map((msg: ChatMessage) => ({
+      const chatHistory = session.messages.map(msg => ({
         role: msg.role,
         content: msg.content,
         timestamp: msg.timestamp
@@ -198,7 +236,7 @@ Remember: You are ${config.persona_name} - embody this identity fully in all you
       session.messages.push(userMessage);
 
       // Prepare chat history for the API
-      const chatHistory = session.messages.map((msg: ChatMessage) => ({
+      const chatHistory = session.messages.map(msg => ({
         role: msg.role,
         content: msg.content,
         timestamp: msg.timestamp
