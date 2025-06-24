@@ -7,6 +7,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Loader2, Mic, Play, Settings } from 'lucide-react';
 import { PODCAST_TOPICS, DEFAULT_PODCAST_VOICES } from '@/lib/api/podcasts';
 import { getPodcastManager, type PodcastGenerationOptions } from '@/lib/api/podcast-manager';
+import { VoiceSelectorCard } from './VoiceSelector';
 import { toast } from '@/components/ui/use-toast';
 
 interface PodcastCreatorProps {
@@ -151,76 +152,52 @@ export function PodcastCreator({ onPodcastCreated }: PodcastCreatorProps) {
           >
             <Settings className="h-4 w-4 mr-2" />
             Advanced Settings
-          </Button>
+          </Button>          {showAdvanced && (
+            <div className="mt-4 space-y-4">
+              <VoiceSelectorCard
+                title="Voice Selection"
+                description="Choose the voices for your podcast hosts"
+                host1Voice={host1Voice}
+                host2Voice={host2Voice}
+                onHost1Change={setHost1Voice}
+                onHost2Change={setHost2Voice}
+                className="bg-white/5 border-white/10"
+              />
 
-          {showAdvanced && (
-            <div className="mt-4 space-y-4 p-4 bg-white/5 rounded-lg border border-white/10">
-              <div>
-                <Label className="text-white/80">Host 1 Voice</Label>
-                <Select value={host1Voice} onValueChange={setHost1Voice}>
-                  <SelectTrigger className="bg-white/5 border-white/20 text-white">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value={DEFAULT_PODCAST_VOICES.host1.id}>
-                      {DEFAULT_PODCAST_VOICES.host1.name} (Professional Female)
-                    </SelectItem>
-                    <SelectItem value={DEFAULT_PODCAST_VOICES.host2.id}>
-                      {DEFAULT_PODCAST_VOICES.host2.name} (Professional Male)
-                    </SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div>
-                <Label className="text-white/80">Host 2 Voice</Label>
-                <Select value={host2Voice} onValueChange={setHost2Voice}>
-                  <SelectTrigger className="bg-white/5 border-white/20 text-white">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value={DEFAULT_PODCAST_VOICES.host2.id}>
-                      {DEFAULT_PODCAST_VOICES.host2.name} (Professional Male)
-                    </SelectItem>
-                    <SelectItem value={DEFAULT_PODCAST_VOICES.host1.id}>
-                      {DEFAULT_PODCAST_VOICES.host1.name} (Professional Female)
-                    </SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div>
-                <Label className="text-white/80">Audio Quality</Label>
-                <Select value={quality} onValueChange={(value) => setQuality(value as 'draft' | 'standard' | 'high')}>
-                  <SelectTrigger className="bg-white/5 border-white/20 text-white">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="draft">Draft (Fast)</SelectItem>
-                    <SelectItem value="standard">Standard (Recommended)</SelectItem>
-                    <SelectItem value="high">High Quality (Slower)</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className="flex items-center space-x-2">
-                <input
-                  type="checkbox"
-                  id="enableMerging"
-                  checked={enableMerging}
-                  onChange={(e) => setEnableMerging(e.target.checked)}
-                  className="rounded border-white/20"
-                />
-                <Label htmlFor="enableMerging" className="text-white/80">
-                  Enable Audio Merging (Creates complete conversational podcast)
-                </Label>
-              </div>
-
-              {enableMerging && !podcastManager.isMergingSupported() && (
-                <div className="text-yellow-400 text-xs p-2 bg-yellow-400/10 rounded border border-yellow-400/20">
-                  ⚠️ Audio merging not supported in this browser. Will use standard generation.
+              <div className="p-4 bg-white/5 rounded-lg border border-white/10 space-y-4">
+                <div>
+                  <Label className="text-white/80">Audio Quality</Label>
+                  <Select value={quality} onValueChange={(value) => setQuality(value as 'draft' | 'standard' | 'high')}>
+                    <SelectTrigger className="bg-white/5 border-white/20 text-white">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="draft">Draft (Fast)</SelectItem>
+                      <SelectItem value="standard">Standard (Recommended)</SelectItem>
+                      <SelectItem value="high">High Quality (Slower)</SelectItem>
+                    </SelectContent>
+                  </Select>
                 </div>
-              )}
+
+                <div className="flex items-center space-x-2">
+                  <input
+                    type="checkbox"
+                    id="enableMerging"
+                    checked={enableMerging}
+                    onChange={(e) => setEnableMerging(e.target.checked)}
+                    className="rounded border-white/20"
+                  />
+                  <Label htmlFor="enableMerging" className="text-white/80">
+                    Enable Audio Merging (Creates complete conversational podcast)
+                  </Label>
+                </div>
+
+                {enableMerging && !podcastManager.isMergingSupported() && (
+                  <div className="text-amber-400 text-xs mt-2 p-2 bg-amber-400/10 rounded">
+                    ⚠️ Audio merging not supported in this browser. Will use standard generation.
+                  </div>
+                )}
+              </div>
             </div>
           )}
         </div>
@@ -244,12 +221,12 @@ export function PodcastCreator({ onPodcastCreated }: PodcastCreatorProps) {
           )}
         </Button>
 
-        {isCreating && (
-          <div className="text-center text-white/60 text-sm">
-            <p>Generating script and audio... This may take a few minutes.</p>
-          </div>
-        )}
-      </CardContent>
-    </Card>
-  );
+          {isCreating && (
+            <div className="text-center text-white/60 text-sm">
+              <p>Generating script and audio... This may take a few minutes.</p>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+    );
 }

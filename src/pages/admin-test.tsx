@@ -5,6 +5,7 @@ import { useSubscription } from '@/lib/revenuecat/context';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import DatabaseCleanup from '@/components/debug/DatabaseCleanup';
 import { 
   Crown, 
   Check, 
@@ -19,14 +20,12 @@ import {
 } from 'lucide-react';
 
 const AdminTestPage: React.FC = () => {
-  const { user } = useAuth();
-  const { 
+  const { user } = useAuth();  const { 
     isSubscribed, 
     subscriptionTier, 
     canAccessFeature, 
     getFeatureLimit,
-    expirationDate,
-    customerInfo
+    expirationDate
   } = useSubscription();
 
   const isPremiumUser = user?.email === 'monu80850raj@gmail.com';
@@ -39,8 +38,7 @@ const AdminTestPage: React.FC = () => {
     { id: 'api_access', name: 'API Access', icon: Zap },
     { id: 'commercial_usage', name: 'Commercial Usage', icon: Shield },
     { id: 'team_collaboration', name: 'Team Collaboration', icon: User },
-    { id: 'white_label', name: 'White Label', icon: Star },
-    { id: 'on_premise_deployment', name: 'On-Premise Deployment', icon: Shield },
+    { id: 'white_label', name: 'On-Premise Deployment', icon: Shield },
     { id: 'neurovia_access', name: 'Neurovia Access', icon: Sparkles },
     { id: 'premium_neurovia_features', name: 'Premium Neurovia Features', icon: Crown },
   ];
@@ -292,6 +290,18 @@ const AdminTestPage: React.FC = () => {
             </CardContent>
           </Card>
         </motion.div>
+
+        {/* Database Cleanup - Admin Only */}
+        {user?.email === 'monu80850raj@gmail.com' && (
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.5 }}
+            className="mt-8"
+          >
+            <DatabaseCleanup />
+          </motion.div>
+        )}
       </div>
     </div>  );
 };

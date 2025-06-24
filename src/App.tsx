@@ -29,6 +29,7 @@ import GrantEnterpriseAccess from './components/admin/GrantEnterpriseAccess';
 import DatabaseDiagnosticPage from './pages/database-diagnostic';
 import PasswordResetTestPage from './pages/password-reset-test';
 import WalletDiagnosticPage from './pages/wallet-diagnostic';
+import SupabaseDiagnostic from './pages/supabase-diagnostic';
 import AboutPage from './pages/about';
 import { AuthProvider } from './lib/context/auth-context';
 import { SubscriptionProvider } from './lib/revenuecat/context';
@@ -66,6 +67,7 @@ function App() {
             <Route path="/auth/callback" element={<AuthCallbackPage />} />
             <Route path="/auth/email-confirm" element={<EmailConfirmPage />} />            <Route path="/auth/forgot-password" element={<ForgotPasswordPage />} />
             <Route path="/auth/reset-password" element={<ResetPasswordPage />} />            <Route path="/debug/database" element={<DatabaseDiagnosticPage />} />
+            <Route path="/debug/supabase" element={<SupabaseDiagnostic />} />
             <Route path="/debug/password-reset" element={<PasswordResetTestPage />} />
             <Route path="/debug/wallet" element={<WalletDiagnosticPage />} />
             <Route path="/neurovia" element={

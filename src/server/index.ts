@@ -5,6 +5,7 @@ import authRoutes from './routes/auth';
 import stripeRoutes from './routes/stripe';
 import elevenLabsRoutes from './routes/elevenlabs';
 import tavusRoutes from './routes/tavus';
+import podcastsRoutes from './routes/podcasts';
 import { requireAuth } from './middleware/auth';
 
 const app = express();
@@ -46,6 +47,7 @@ app.use('/api/stripe', stripeRoutes);
 // Protected routes
 app.use('/api/elevenlabs', requireAuth, elevenLabsRoutes);
 app.use('/api/tavus', requireAuth, tavusRoutes);
+app.use('/api', podcastsRoutes);
 
 // Error handling middleware
 app.use((err: Error, req: express.Request, res: express.Response, next: express.NextFunction) => {

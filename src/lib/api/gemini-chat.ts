@@ -202,22 +202,23 @@ Remember: You are ${config.persona_name} - embody this identity fully in all you
         role: msg.role,
         content: msg.content,
         timestamp: msg.timestamp
-      }));
-
-      // Build full prompt with persona context
+      }));      // Build full prompt with persona context
       const fullPrompt = session.systemPrompt + '\n\nUser: ' + message;
 
-      // Use the secure AI service with streaming callback
-      await this.secureAI.sendMessageStream(fullPrompt, chatHistory, {}, onChunk);
-
-      // For now, get the full response after streaming
-      const response = await this.secureAI.sendMessage(fullPrompt, chatHistory);
+      // Collect the full response while streaming
+      let fullResponse = '';
       
-      // Create final AI response message
+      // Use the secure AI service with streaming callback
+      await this.secureAI.sendMessageStream(fullPrompt, chatHistory, {}, (chunk: string) => {
+        fullResponse += chunk;
+        onChunk(chunk);
+      });
+      
+      // Create final AI response message with the collected response
       const aiMessage: ChatMessage = {
         id: `msg_${Date.now()}_ai`,
         role: 'assistant',
-        content: response.response || 'I apologize, but I could not generate a response.',
+        content: fullResponse || 'I apologize, but I could not generate a response.',
         timestamp: new Date(),
         persona_id: session.config.persona_id
       };

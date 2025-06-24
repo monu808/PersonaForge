@@ -111,9 +111,8 @@ class SecureAIService {
       };
     }
   }
-
   /**
-   * Stream a message response (for real-time chat)
+   * Stream a message response (for real-time chat) using Server-Sent Events
    */
   async sendMessageStream(
     message: string,
@@ -121,26 +120,105 @@ class SecureAIService {
     config: ChatConfig = {},
     onChunk: (chunk: string) => void
   ): Promise<void> {
-    try {
-      // For now, use regular message and simulate streaming
-      // You can implement Server-Sent Events later if needed
-      const response = await this.sendMessage(message, chatHistory, config);
-      
-      if (response.success && response.response) {
-        // Simulate streaming by chunking the response
-        const words = response.response.split(' ');
-        for (let i = 0; i < words.length; i++) {
-          const chunk = words.slice(0, i + 1).join(' ');
-          onChunk(chunk);
-          await new Promise(resolve => setTimeout(resolve, 50)); // Simulate delay
-        }
-      } else {
-        throw new Error(response.error || 'Failed to get response');
+    return new Promise((resolve, reject) => {
+      try {
+        // Convert chat history to Gemini format
+        const formattedHistory = chatHistory.map(msg => ({
+          role: msg.role === 'assistant' ? 'model' : 'user',
+          parts: [{ text: msg.content }]
+        }));
+
+        // Create request payload
+        const requestData = {
+          message,
+          chatHistory: formattedHistory,
+          config
+        };
+
+        // Use fetch for streaming instead of EventSource for better control
+        fetch(`${this.baseUrl}/gemini-chat-stream`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Accept': 'text/event-stream',
+          },
+          body: JSON.stringify(requestData),
+        })
+        .then(response => {
+          if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+          }
+
+          const reader = response.body?.getReader();
+          if (!reader) {
+            throw new Error('No reader available');
+          }
+
+          const decoder = new TextDecoder();
+          let buffer = '';
+
+          const readChunk = async (): Promise<void> => {
+            try {
+              const { done, value } = await reader.read();
+              
+              if (done) {
+                resolve();
+                return;
+              }
+
+              // Decode and add to buffer
+              buffer += decoder.decode(value, { stream: true });
+              
+              // Process complete lines
+              const lines = buffer.split('\n');
+              buffer = lines.pop() || ''; // Keep incomplete line in buffer
+
+              for (const line of lines) {
+                if (line.startsWith('data: ')) {
+                  const data = line.slice(6); // Remove 'data: ' prefix
+                  
+                  if (data === '[DONE]') {
+                    resolve();
+                    return;
+                  }
+
+                  try {
+                    const parsed = JSON.parse(data);
+                    
+                    if (parsed.type === 'chunk' && parsed.content) {
+                      onChunk(parsed.content);
+                    } else if (parsed.type === 'complete') {
+                      resolve();
+                      return;
+                    } else if (parsed.type === 'error') {
+                      reject(new Error(parsed.error || 'Streaming error'));
+                      return;
+                    }
+                  } catch (parseError) {
+                    console.warn('Failed to parse SSE data:', data);
+                  }
+                }
+              }
+
+              // Continue reading
+              readChunk();
+            } catch (error) {
+              reject(error);
+            }
+          };
+
+          readChunk();
+        })
+        .catch(error => {
+          console.error('Fetch error:', error);
+          reject(error);
+        });
+
+      } catch (error) {
+        console.error('Streaming error:', error);
+        reject(error);
       }
-    } catch (error) {
-      console.error('Streaming error:', error);
-      throw error;
-    }
+    });
   }
 
   /**

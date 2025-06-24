@@ -175,31 +175,55 @@ export async function generateSpeech(data: ElevenLabsVoiceRequest, retries = 2):
 }
 
 /**
- * Get available voices from Eleven Labs (Direct API call for debugging)
+ * Fetch available voices from ElevenLabs
  */
 export async function getAvailableVoices(): Promise<ElevenLabsVoice[]> {
   try {
-    // Get session to check authentication
-    const { data: sessionData } = await supabase.auth.getSession();
-    const user = sessionData?.session?.user;
+    const apiKey = import.meta.env.VITE_ELEVENLABS_API_KEY;
     
-    if (!user) {
-      // Return only default public voices for unauthenticated users
-      return DEFAULT_PUBLIC_VOICES;
+    if (!apiKey) {
+      console.error('ElevenLabs API key not found');
+      return getDefaultVoices();
     }
+
+    const response = await fetch('https://api.elevenlabs.io/v1/voices', {
+      method: 'GET',
+      headers: {
+        'xi-api-key': apiKey,
+        'Content-Type': 'application/json',
+      },
+    });
+
+    if (!response.ok) {
+      console.error('ElevenLabs API error:', response.status, response.statusText);
+      return getDefaultVoices();
+    }
+
+    const data = await response.json();
     
-    // Get user's personal voices
-    const userVoices = await getUserVoices();
+    if (data.voices && Array.isArray(data.voices)) {
+      return data.voices.map((voice: any) => ({
+        id: voice.voice_id,
+        name: voice.name,
+        category: voice.category || 'general',
+        description: voice.description || '',
+        previewUrl: voice.preview_url || null
+      }));
+    }
+
+    return getDefaultVoices();
     
-    // Combine default public voices with user's personal voices
-    // User voices come first for better UX
-    const allVoices = [...userVoices, ...DEFAULT_PUBLIC_VOICES];
-    
-    return allVoices;
-  } catch (error) {    console.error('Error fetching voices:', error);
-    // Return default voices as fallback
-    return DEFAULT_PUBLIC_VOICES;
+  } catch (error) {
+    console.error('Error fetching ElevenLabs voices:', error);
+    return getDefaultVoices();
   }
+}
+
+/**
+ * Get default voice options when API is not available
+ */
+function getDefaultVoices(): ElevenLabsVoice[] {
+  return DEFAULT_PUBLIC_VOICES;
 }
 
 /**
@@ -861,43 +885,43 @@ const DEFAULT_PUBLIC_VOICES: ElevenLabsVoice[] = [
   {
     id: '21m00Tcm4TlvDq8ikWAM',
     name: 'Rachel',
-    category: 'default',
+    category: 'premade',
     description: 'Professional female voice with a clear, articulate tone',
     previewUrl: 'https://storage.googleapis.com/eleven-public-prod/premade/voices/21m00Tcm4TlvDq8ikWAM/df6788f9-5c96-470d-8312-aab3b3d8f50a.mp3'
   },
   {
     id: 'AZnzlk1XvdvUeBnXmlld',
     name: 'Domi',
-    category: 'default', 
+    category: 'premade', 
     description: 'Professional male voice with a warm, engaging tone',
     previewUrl: 'https://storage.googleapis.com/eleven-public-prod/premade/voices/AZnzlk1XvdvUeBnXmlld/e8b3469c-5d75-4b2e-8c6e-4db9dc3c19ad.mp3'
   },
   {
     id: 'EXAVITQu4vr4xnSDxMaL',
     name: 'Bella',
-    category: 'default',
+    category: 'premade',
     description: 'Young female voice with an expressive and confident tone',
     previewUrl: 'https://storage.googleapis.com/eleven-public-prod/premade/voices/EXAVITQu4vr4xnSDxMaL/532b7b7c-6c8a-4ee0-9ac8-14a20e7d3aa5.mp3'
   },
   {
     id: 'ErXwobaYiN019PkySvjV',
     name: 'Antoni',
-    category: 'default',
+    category: 'premade',
     description: 'Deep male voice with an authoritative and calming presence',
     previewUrl: 'https://storage.googleapis.com/eleven-public-prod/premade/voices/ErXwobaYiN019PkySvjV/6d1d1774-d052-4d3c-8240-0e87b28b2c0b.mp3'
   },
   {
     id: 'MF3mGyEYCl7XYWbV9V6O',
     name: 'Elli',
-    category: 'default',
+    category: 'premade',
     description: 'Young female voice with an emotional and expressive delivery',
     previewUrl: 'https://storage.googleapis.com/eleven-public-prod/premade/voices/MF3mGyEYCl7XYWbV9V6O/2f50d1e7-9826-4238-b6db-a5fa0e1d1e2e.mp3'
   },
   {
     id: 'TxGEqnHWrfWFTfGW9XjX',
     name: 'Josh',
-    category: 'default',
+    category: 'premade',
     description: 'Professional male voice with a clear, engaging tone',
-    previewUrl: 'https://storage.googleapis.com/eleven-public-prod/premade/voices/TxGEqnHWrfWFTfGW9XjX/c9f4b2a8-9f41-4c5d-8f1e-8e8e8e8e8e8.mp3'
+    previewUrl: 'https://storage.googleapis.com/eleven-public-prod/premade/voices/TxGEqnHWrfWFTfGW9XjX/c9f4b2a8-9f41-4c5d-8f1e-8e8e8e8e8e.mp3'
   }
 ];

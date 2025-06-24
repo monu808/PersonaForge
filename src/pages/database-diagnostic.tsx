@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { supabase } from '@/lib/auth';
 import { Button } from '@/components/ui/button';
 import { Loader2 } from 'lucide-react';
+import DatabaseCleanup from '@/components/debug/DatabaseCleanup';
 
 export default function DatabaseDiagnosticPage() {
   const [isLoading, setIsLoading] = useState(false);
@@ -204,9 +205,7 @@ export default function DatabaseDiagnosticPage() {
             <li>• <strong>Environment variables</strong> - Wrong project URL or API key</li>
             <li>• <strong>Database schema corruption</strong> - Auth tables modified incorrectly</li>
           </ul>
-        </div>
-
-        <div className="mt-6 p-6 bg-green-50 border border-green-200 rounded-lg">
+        </div>        <div className="mt-6 p-6 bg-green-50 border border-green-200 rounded-lg">
           <h3 className="font-semibold text-green-800 mb-4">Next Steps:</h3>
           <ol className="text-green-700 text-sm space-y-2">
             <li>1. <strong>Run the tests above</strong> to identify the specific issue</li>
@@ -215,6 +214,10 @@ export default function DatabaseDiagnosticPage() {
             <li>4. <strong>Check database schema</strong> in SQL Editor for any issues</li>
             <li>5. <strong>Review any custom triggers/functions</strong> that might be failing</li>
           </ol>
+        </div>
+
+        <div className="mt-6">
+          <DatabaseCleanup />
         </div>
       </div>
     </div>

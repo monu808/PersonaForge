@@ -47,27 +47,16 @@ export function PodcastList({ refreshTrigger = 0 }: PodcastListProps) {
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
   const audioRef = useRef<HTMLAudioElement | null>(null);
-
   const loadPodcasts = async () => {
     setIsLoading(true);
     try {
       console.log('Loading podcasts...');
-      const { data, error } = await getUserPodcasts();
+      const data = await getUserPodcasts();
       
-      if (error) {
-        console.error('Error loading podcasts:', error);
-        toast({
-          title: "Error",
-          description: "Failed to load podcasts: " + error,
-          variant: "destructive",
-        });
-        return;
-      }
-
-      if (data) {
+      if (data && data.length > 0) {
         console.log('Loaded podcasts:', data.length);
         // Log audio URLs for debugging
-        data.forEach(podcast => {
+        data.forEach((podcast: Podcast) => {
           if (podcast.audio_url && podcast.status === 'completed') {
             console.log(`Podcast ${podcast.id} (${podcast.title}): Audio URL exists`);
           } else {
@@ -76,6 +65,7 @@ export function PodcastList({ refreshTrigger = 0 }: PodcastListProps) {
         });
         setPodcasts(data);
       } else {
+        console.log('No podcasts found');
         setPodcasts([]);
       }
     } catch (error) {
@@ -89,11 +79,26 @@ export function PodcastList({ refreshTrigger = 0 }: PodcastListProps) {
       setIsLoading(false);
     }
   };
-
   // Load podcasts on component mount and refresh trigger
   useEffect(() => {
     loadPodcasts();
   }, [refreshTrigger]);
+  // Auto-refresh for podcasts with pending/processing status
+  useEffect(() => {
+    const hasPendingPodcasts = podcasts.some(p => 
+      p.status === 'pending' || p.status === 'processing' || p.status === 'generating'
+    );
+
+    if (hasPendingPodcasts) {
+      console.log('Found pending/processing podcasts, setting up auto-refresh...');
+      const interval = setInterval(() => {
+        console.log('Auto-refreshing podcasts...');
+        loadPodcasts();
+      }, 15000); // Refresh every 15 seconds (reduced frequency)
+
+      return () => clearInterval(interval);
+    }
+  }, [podcasts]);
 
   // Audio event handlers
   useEffect(() => {
@@ -293,11 +298,9 @@ export function PodcastList({ refreshTrigger = 0 }: PodcastListProps) {
   };
 
   const handleDelete = async (id: string) => {
-    if (!confirm('Are you sure you want to delete this podcast?')) return;
-
-    try {
-      const { error } = await deletePodcast(id);
-      if (error) throw new Error(error);
+    if (!confirm('Are you sure you want to delete this podcast?')) return;    try {
+      const success = await deletePodcast(id);
+      if (!success) throw new Error('Failed to delete podcast');
 
       setPodcasts(prev => prev.filter(p => p.id !== id));
       
@@ -320,13 +323,15 @@ export function PodcastList({ refreshTrigger = 0 }: PodcastListProps) {
       });
     }
   };
-
   const getStatusBadge = (status: string) => {
     switch (status) {
       case 'completed':
         return <div className="px-2 py-1 bg-green-500/20 border border-green-500/30 rounded-full text-green-300 text-xs">Ready</div>;
+      case 'processing':
       case 'generating':
-        return <div className="px-2 py-1 bg-yellow-500/20 border border-yellow-500/30 rounded-full text-yellow-300 text-xs">Generating</div>;
+        return <div className="px-2 py-1 bg-yellow-500/20 border border-yellow-500/30 rounded-full text-yellow-300 text-xs">Processing</div>;
+      case 'pending':
+        return <div className="px-2 py-1 bg-blue-500/20 border border-blue-500/30 rounded-full text-blue-300 text-xs">Pending</div>;
       case 'failed':
         return <div className="px-2 py-1 bg-red-500/20 border border-red-500/30 rounded-full text-red-300 text-xs">Failed</div>;
       default:
@@ -402,12 +407,12 @@ export function PodcastList({ refreshTrigger = 0 }: PodcastListProps) {
                     </div>
                     <div className="flex items-center gap-1">
                       <Calendar className="h-3 w-3 text-purple-400" />
-                      <span className="text-xs">{formatTimeAgo(podcast.created_at)}</span>
+                      <span className="text-xs">{formatTimeAgo(podcast.created_at || '')}</span>
                     </div>
                   </div>
                 </div>
                 <div className="flex items-center space-x-1 ml-2">
-                  {getStatusBadge(podcast.status)}
+                  {getStatusBadge(podcast.status || 'unknown')}
                   <Button
                     variant="ghost"
                     size="sm"
@@ -424,10 +429,9 @@ export function PodcastList({ refreshTrigger = 0 }: PodcastListProps) {
                 {podcast.topic}
               </div>
 
-              {/* Main Content Area */}
-              <div className="flex-1 flex flex-col justify-center">
+              {/* Main Content Area */}              <div className="flex-1 flex flex-col justify-center">
                 {/* Audio Player */}
-                {podcast.status === 'completed' && podcast.audio_url && (
+                {podcast.audio_url && podcast.status !== 'failed' && (
                   <div className="bg-white/5 rounded-lg p-3 border border-white/10">
                     <div className="flex items-center justify-center space-x-2 mb-2">
                       <Button

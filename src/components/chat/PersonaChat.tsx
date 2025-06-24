@@ -130,13 +130,12 @@ export function PersonaChat({ persona, onClose }: PersonaChatProps) {
         persona_id: persona.id
       };
 
-      setMessages(prev => [...prev, userMessage]);
-
-      // Stream AI response
+      setMessages(prev => [...prev, userMessage]);      // Stream AI response
       const aiMessage = await geminiChatService.sendMessageStream(
         sessionId,
         messageText,
         (chunk: string) => {
+          // chunk contains only the new text, so append it
           setStreamingResponse(prev => prev + chunk);
         }
       );
