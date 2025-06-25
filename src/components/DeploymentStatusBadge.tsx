@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Badge } from './ui/badge';
 import { Loader2 } from 'lucide-react';
 
@@ -69,9 +69,31 @@ export function DeploymentStatusBadge() {
       );
     default:
       return (
-        <Badge variant="outline">
-          Status Unknown
-        </Badge>
+        <div 
+          id="bolt-button"
+          className="pointer-events-auto"
+          style={{
+            position: 'absolute',
+            bottom: '2vw',
+            right: '2vw',
+            width: '8vw',
+            height: '8vw',
+            backgroundImage: 'url(/badge/black_circle_360x360.png)',
+            backgroundSize: 'contain',
+            backgroundRepeat: 'no-repeat',
+            backgroundPosition: 'center center',
+            cursor: 'pointer',
+            transition: 'opacity 300ms',
+            minWidth: '64px',
+            minHeight: '64px',
+            maxWidth: '120px',
+            maxHeight: '120px'
+          }}
+          onClick={() => window.open('https://bolt.new/', '_blank', 'noopener,noreferrer')}
+          onMouseEnter={(e) => e.currentTarget.style.opacity = '0.8'}
+          onMouseLeave={(e) => e.currentTarget.style.opacity = '1'}
+          title="Built with Bolt.new"
+        />
       );
   }
 }
