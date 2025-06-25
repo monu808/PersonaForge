@@ -52,7 +52,7 @@ function App() {
   return (
     <>
       <div className="fixed bottom-4 right-4 z-50">
-        <DeploymentStatusBadge key="deployment-badge" />
+        <DeploymentStatusBadge />
       </div>
     <AuthProvider>
       <SubscriptionProvider>
