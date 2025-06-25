@@ -1,6 +1,7 @@
 import { Handler, HandlerEvent, HandlerContext } from '@netlify/functions';
 
 export const handler: Handler = async (event: HandlerEvent, context: HandlerContext) => {
+  console.log('Deployment status function called');
   const headers = {
     'Access-Control-Allow-Origin': '*',
     'Access-Control-Allow-Headers': 'Content-Type',
@@ -22,12 +23,15 @@ export const handler: Handler = async (event: HandlerEvent, context: HandlerCont
 
   try {
     // Get deployment info from Netlify environment variables
+    console.log('Getting deployment info from environment variables');
     const deploymentId = process.env.DEPLOY_ID || 'unknown';
     const branch = process.env.BRANCH || 'main';
     const deployUrl = process.env.DEPLOY_URL || 'unknown';
     const siteUrl = process.env.URL || 'unknown';
     const buildId = process.env.BUILD_ID || 'unknown';
     const commitRef = process.env.COMMIT_REF || 'unknown';
+
+    console.log('Deployment info:', { deploymentId, deployUrl, siteUrl });
 
     return {
       statusCode: 200,
@@ -40,7 +44,7 @@ export const handler: Handler = async (event: HandlerEvent, context: HandlerCont
         buildId: buildId,
         commitRef: commitRef,
         timestamp: new Date().toISOString(),
-        status: 'deployed'
+        status: deploymentId !== 'unknown' ? 'success' : 'unknown'
       }),
     };
 
