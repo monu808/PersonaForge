@@ -1,3 +1,4 @@
+[![Netlify Status](https://api.netlify.com/api/v1/badges/6022dada-0156-429d-949a-f3403d31861b/deploy-status)](https://app.netlify.com/projects/classy-blini-7fca23/deploys)
 # PersonaForge - AI Persona Platform
 
 ## Project Overview
