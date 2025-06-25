@@ -71,17 +71,13 @@ export function DeploymentStatusBadge() {
       return (
         <div 
           id="bolt-button"
-          className="pointer-events-auto"
+          className="pointer-events-auto relative"
           style={{
             position: 'absolute',
             bottom: '2vw',
             right: '2vw',
             width: '8vw',
             height: '8vw',
-            backgroundImage: 'url(/badge/black_circle_360x360.png)',
-            backgroundSize: 'contain',
-            backgroundRepeat: 'no-repeat',
-            backgroundPosition: 'center center',
             cursor: 'pointer',
             transition: 'opacity 300ms',
             minWidth: '64px',
@@ -93,7 +89,38 @@ export function DeploymentStatusBadge() {
           onMouseEnter={(e) => e.currentTarget.style.opacity = '0.8'}
           onMouseLeave={(e) => e.currentTarget.style.opacity = '1'}
           title="Built with Bolt.new"
-        />
+        >
+          <img 
+            src="/badge/black_circle_360x360.png" 
+            alt="Built with Bolt.new" 
+            className="w-full h-full object-contain"
+            onError={(e) => {
+              // Fallback if image fails to load
+              const target = e.target as HTMLImageElement;
+              target.style.display = 'none';
+              const parent = target.parentElement;
+              if (parent) {
+                parent.innerHTML = `
+                  <div style="
+                    width: 100%;
+                    height: 100%;
+                    background-color: #000;
+                    border: 2px solid #333;
+                    border-radius: 50%;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    color: white;
+                    font-size: 12px;
+                    font-weight: bold;
+                  ">
+                    BOLT
+                  </div>
+                `;
+              }
+            }}
+          />
+        </div>
       );
   }
 }
