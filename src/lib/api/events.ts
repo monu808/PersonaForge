@@ -55,6 +55,12 @@ function updateDemoEvent(id: string, updates: Partial<LiveEvent>): void {
   }
 }
 
+function removeDemoEvent(id: string): void {
+  const events = getDemoEvents();
+  const filtered = events.filter(e => e.id !== id);
+  saveDemoEvents(filtered);
+}
+
 /**
  * Create a new live event
  */
@@ -125,20 +131,20 @@ export async function getPublicLiveEvents(): Promise<{ data: LiveEvent[] | null;
       // Demo mode - return public events from localStorage
       const demoEvents = getDemoEvents().filter(e => e.visibility === 'public');
       return { data: demoEvents, error: null };
-    }
-
-    try {
+    }    try {
       const { data: events, error } = await supabase
         .from('live_events')
         .select('*')
         .eq('visibility', 'public')
+        .in('status', ['upcoming', 'live']) // Only show upcoming and live events
         .order('created_at', { ascending: false });
 
       if (error) throw error;
       return { data: events, error: null };
     } catch (dbError) {
       console.log('Database not available, using demo mode');
-      const demoEvents = getDemoEvents().filter(e => e.visibility === 'public');
+      const demoEvents = getDemoEvents()
+        .filter(e => e.visibility === 'public' && ['upcoming', 'live'].includes(e.status));
       return { data: demoEvents, error: null };
     }
   } catch (error) {
@@ -278,6 +284,40 @@ export async function joinEvent(eventId: string): Promise<{ error: string | null
     }
   } catch (error) {
     console.error('Error joining event:', error);
+    return { 
+      error: error instanceof Error ? error.message : 'Unknown error occurred' 
+    };
+  }
+}
+
+/**
+ * Delete an event
+ */
+export async function deleteEvent(eventId: string): Promise<{ error: string | null }> {
+  try {
+    const { data: sessionData } = await supabase.auth.getSession();
+    const user = sessionData?.session?.user;
+    
+    if (!user) {
+      return { error: 'Please sign in to delete events' };
+    }
+
+    try {
+      const { error } = await supabase
+        .from('live_events')
+        .delete()
+        .eq('id', eventId)
+        .eq('host_user_id', user.id);
+
+      if (error) throw error;
+      return { error: null };
+    } catch (dbError) {
+      console.log('Database not available, using demo mode');
+      removeDemoEvent(eventId);
+      return { error: null };
+    }
+  } catch (error) {
+    console.error('Error deleting event:', error);
     return { 
       error: error instanceof Error ? error.message : 'Unknown error occurred' 
     };

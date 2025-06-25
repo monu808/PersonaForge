@@ -4,16 +4,17 @@ import { Textarea } from '@/components/ui/textarea';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Loader2, FileAudio, FileText, AlertCircle, Music } from 'lucide-react';
-import { createPersonaVideo } from '@/lib/api/tavus';
+import { createPersonaVideo, syncTavusVideoToDatabase, debugListAllVideos } from '@/lib/api/tavus';
 import { supabase } from '@/lib/auth';
 import { useLocation } from 'react-router-dom';
 
 interface TavusVideoGeneratorProps {
   personaId: string;
-  onVideoGenerated: (videoId: string) => void;
+  onVideoGenerated: (forPersonaId: string) => void; // Updated to clarify it passes persona ID
+  onForceRefresh?: () => void; // Optional callback to force refresh
 }
 
-export function TavusVideoGenerator({ personaId, onVideoGenerated }: TavusVideoGeneratorProps) {
+export function TavusVideoGenerator({ personaId, onVideoGenerated, onForceRefresh }: TavusVideoGeneratorProps) {
   const location = useLocation();
   const [script, setScript] = useState<string>('');
   const [audioFile, setAudioFile] = useState<File | null>(null);
@@ -60,11 +61,13 @@ export function TavusVideoGenerator({ personaId, onVideoGenerated }: TavusVideoG
       fetchAudioData();
     }
   }, [location.search, personaId]);
-  
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsGenerating(true);
     setError(null);
+    
+    console.log('DEBUG: Starting video generation for persona:', personaId);
+    console.log('DEBUG: Current persona from props:', personaId);
     
     try {
       const request: {
@@ -73,7 +76,7 @@ export function TavusVideoGenerator({ personaId, onVideoGenerated }: TavusVideoG
         audioFile?: File;
         audioUrl?: string;
       } = {
-        personaId
+        personaId: personaId // Explicitly use the personaId from props
       };
       
       // Set the right source for the video based on generation type
@@ -84,21 +87,74 @@ export function TavusVideoGenerator({ personaId, onVideoGenerated }: TavusVideoG
       } else if (generationType === 'elevenlabs' && audioUrl) {
         request.audioUrl = audioUrl;
       }
+        const { data, error } = await createPersonaVideo(request);
       
-      const { data, error } = await createPersonaVideo(request);
-      
-      if (error) throw error;
-      
-      if (data?.id) {
-        onVideoGenerated(data.id);
+      if (error) throw error;      if (data?.id) {
+        // Video was successfully created and stored in database
+        console.log('Video successfully created:', data);
+        console.log('DEBUG: Video created for persona ID:', personaId);
+        
+        // Call the callback immediately to trigger UI updates
+        console.log('DEBUG: Calling onVideoGenerated with persona ID:', personaId);
+        onVideoGenerated(personaId);
+        
+        // Automatically perform recovery operation in background to ensure video appears
+        if (data.tavus_video_id) {
+          console.log('DEBUG: Performing automatic video recovery for Tavus ID:', data.tavus_video_id);
+          console.log('DEBUG: Recovery will use persona ID:', personaId);
+          
+          // Perform recovery in background
+          setTimeout(async () => {
+            try {
+              const recoveryResult = await syncTavusVideoToDatabase(
+                data.tavus_video_id,
+                personaId, // Use the explicit personaId from props
+                request.script || 'Generated video'
+              );
+              
+              if (recoveryResult.success) {
+                console.log('DEBUG: Auto-recovery successful for persona:', personaId);
+                // Debug: List all videos to see what's in the database
+                setTimeout(() => {
+                  debugListAllVideos();
+                }, 1000);
+                
+                // Force refresh to show the recovered video
+                if (onForceRefresh) {
+                  setTimeout(() => {
+                    console.log('DEBUG: Calling force refresh after recovery');
+                    onForceRefresh();
+                  }, 500);
+                }
+              } else {
+                console.warn('DEBUG: Auto-recovery failed:', recoveryResult.error);
+                // If recovery failed, try again with a different approach
+                if (recoveryResult.error?.includes('already exists')) {
+                  console.log('DEBUG: Video already exists, calling force refresh anyway');
+                  if (onForceRefresh) {
+                    setTimeout(() => {
+                      onForceRefresh();
+                    }, 500);
+                  }
+                }
+              }
+            } catch (error) {
+              console.warn('DEBUG: Auto-recovery error:', error);
+            }
+          }, 2000); // Wait 2 seconds for initial database transaction to settle
+        }
       } else {
         throw new Error('No video ID returned from API');
-      }    } catch (err) {
+      }} catch (err) {
       console.error('Error generating video:', err);
       const errorMessage = err instanceof Error ? err.message : 'Failed to generate video';
       
+      // Check if it's a database error (video created but not stored)
+      if (errorMessage.includes('Failed to save video to database')) {
+        setError(`${errorMessage}\n\nThe video was created in Tavus but couldn't be saved to your account. You can recover it using the "Recover Video" button with the Tavus video ID from the error above.`);
+      }
       // Check if it's a replica error and provide helpful guidance
-      if (errorMessage.includes('error state') || errorMessage.includes('not ready')) {
+      else if (errorMessage.includes('error state') || errorMessage.includes('not ready')) {
         setError(`${errorMessage}\n\nTo fix this:\n1. Go to the Replicas tab\n2. Create a new replica for this persona\n3. Wait for it to complete training\n4. Try generating the video again`);
       } else {
         setError(errorMessage);

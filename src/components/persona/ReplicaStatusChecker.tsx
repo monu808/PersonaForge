@@ -1,13 +1,12 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Loader2, CheckCircle, AlertTriangle, Clock, XCircle, Info, Search, RefreshCw } from 'lucide-react';
+import { Loader2, CheckCircle, AlertTriangle, Clock, XCircle, Info, Search } from 'lucide-react';
 import { toast } from '@/components/ui/use-toast';
 import { checkTavusReplicaStatus } from '@/lib/api/tavus';
 import { getPersonas } from '@/lib/api/personas';
-import { REPLICA_STATUS_GUIDE, TAVUS_ERROR_SOLUTIONS } from '@/lib/tavus-guide';
 
 interface ReplicaStatusCheckerProps {
   initialReplicaId?: string;
@@ -81,16 +80,33 @@ export function ReplicaStatusChecker({ initialReplicaId = '' }: ReplicaStatusChe
           continue;
         }
 
+        // Add a small delay between requests to avoid rate limiting
+        if (results.length > 0) {
+          await new Promise(resolve => setTimeout(resolve, 500)); // 500ms delay
+        }
+
         try {
           const replicaStatus = await checkTavusReplicaStatus(replicaId);
-          results.push({
-            personaName: persona.name,
-            personaId: persona.id,
-            replicaId: replicaId,
-            status: replicaStatus.status,
-            training_progress: replicaStatus.training_progress,
-            error: replicaStatus.error
-          });
+          
+          // Check for API errors and provide better feedback
+          if (replicaStatus.status === 'error' && replicaStatus.error?.includes('HTTP error! status: 500')) {
+            results.push({
+              personaName: persona.name,
+              personaId: persona.id,
+              replicaId: replicaId,
+              status: 'api_error',
+              error: 'Tavus API temporarily unavailable (500 error)'
+            });
+          } else {
+            results.push({
+              personaName: persona.name,
+              personaId: persona.id,
+              replicaId: replicaId,
+              status: replicaStatus.status,
+              training_progress: replicaStatus.training_progress,
+              error: replicaStatus.error
+            });
+          }
         } catch (err) {
           results.push({
             personaName: persona.name,
@@ -101,15 +117,21 @@ export function ReplicaStatusChecker({ initialReplicaId = '' }: ReplicaStatusChe
           });
         }
       }
+        setAllPersonasStatus(results);
       
-      setAllPersonasStatus(results);
-        const errorCount = results.filter(r => r.status === 'error' || r.status === 'no_replica').length;
+      const errorCount = results.filter(r => r.status === 'error' || r.status === 'no_replica').length;
+      const apiErrorCount = results.filter(r => r.status === 'api_error').length;
       const readyCount = results.filter(r => r.status === 'ready' || r.status === 'completed').length;
       const trainingCount = results.filter(r => r.status === 'training').length;
       
+      let description = `Found ${results.length} personas: ${readyCount} ready, ${trainingCount} training`;
+      if (errorCount > 0) description += `, ${errorCount} need attention`;
+      if (apiErrorCount > 0) description += `, ${apiErrorCount} API errors`;
+      
       toast({
         title: "Persona Scan Complete",
-        description: `Found ${results.length} personas: ${readyCount} ready, ${trainingCount} training, ${errorCount} need attention`,
+        description: description,
+        variant: apiErrorCount > 0 ? "destructive" : "default"
       });
       
     } catch (err) {
@@ -123,14 +145,15 @@ export function ReplicaStatusChecker({ initialReplicaId = '' }: ReplicaStatusChe
     } finally {
       setIsScanningAll(false);
     }
-  };
-  const getStatusIcon = (status: string) => {
+  };  const getStatusIcon = (status: string) => {
     switch (status) {
       case 'ready':
+      case 'completed':
         return <CheckCircle className="h-5 w-5 text-green-500" />;
       case 'training':
         return <Clock className="h-5 w-5 text-blue-500" />;
       case 'error':
+      case 'api_error':
         return <XCircle className="h-5 w-5 text-red-500" />;
       case 'no_replica':
         return <AlertTriangle className="h-5 w-5 text-orange-500" />;
@@ -139,14 +162,15 @@ export function ReplicaStatusChecker({ initialReplicaId = '' }: ReplicaStatusChe
       default:
         return <Info className="h-5 w-5 text-gray-500" />;
     }
-  };
-  const getStatusColor = (status: string) => {
+  };  const getStatusColor = (status: string) => {
     switch (status) {
       case 'ready':
+      case 'completed':
         return 'text-green-600 bg-green-50 border-green-200';
       case 'training':
         return 'text-blue-600 bg-blue-50 border-blue-200';
       case 'error':
+      case 'api_error':
         return 'text-red-600 bg-red-50 border-red-200';
       case 'no_replica':
         return 'text-orange-600 bg-orange-50 border-orange-200';
@@ -155,15 +179,17 @@ export function ReplicaStatusChecker({ initialReplicaId = '' }: ReplicaStatusChe
       default:
         return 'text-gray-600 bg-gray-50 border-gray-200';
     }
-  };
-  const getStatusMessage = (status: string, trainingProgress?: number, error?: string) => {
+  };  const getStatusMessage = (status: string, trainingProgress?: number, error?: string) => {
     switch (status) {
       case 'ready':
+      case 'completed':
         return 'Replica is ready for video generation';
       case 'training':
         return `Training in progress${trainingProgress ? ` (${trainingProgress}% complete)` : ''}`;
       case 'error':
         return `Replica failed: ${error || 'Unknown error'}`;
+      case 'api_error':
+        return 'Tavus API temporarily unavailable - try again later';
       case 'no_replica':
         return 'No replica found - create one in the Replicas tab';
       case 'unknown':
@@ -275,9 +301,13 @@ export function ReplicaStatusChecker({ initialReplicaId = '' }: ReplicaStatusChe
                   </div>
                 </div>
               ))}
-            </div>
-            <div className="text-xs text-gray-500 p-2 bg-gray-50 rounded">
+            </div>            <div className="text-xs text-gray-500 p-2 bg-gray-50 rounded">
               <strong>Action Required:</strong> Personas with "error" or "no_replica" status need new replicas created in the Replicas tab.
+              {allPersonasStatus.some(p => p.status === 'api_error') && (
+                <div className="mt-2 text-amber-600">
+                  <strong>API Issues:</strong> Some replicas show API errors due to temporary Tavus service issues. These typically resolve within a few minutes - try refreshing later.
+                </div>
+              )}
             </div>
           </div>
         )}

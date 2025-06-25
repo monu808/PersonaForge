@@ -15,18 +15,20 @@ import {
   Share,
   Settings,
   Play,
-  Square,  MessageCircle,
+  Square,
+  MessageCircle,
   Monitor,
   Globe,
   Lock,
   Eye,
   Loader2,
-  Headphones
+  Headphones,
+  Trash2
 } from 'lucide-react';
 import { toast } from '@/components/ui/use-toast';
 import { getPodcastManager, type PodcastGenerationOptions } from '@/lib/api/podcast-manager';
 import { PODCAST_TOPICS, DEFAULT_PODCAST_VOICES } from '@/lib/api/podcasts';
-import { createLiveEvent, getUserEvents, updateEventStatus, LiveEvent } from '@/lib/api/events';
+import { createLiveEvent, getUserEvents, updateEventStatus, deleteEvent, LiveEvent } from '@/lib/api/events';
 
 interface Replica {
   id: string;
@@ -204,9 +206,9 @@ export default function EventHost({ replicas }: EventHostProps) {
         quality: formData.quality,
         pauseBetweenSpeakers: 1.0,
         maxSegments: formData.duration > 7 ? 12 : 8
-      };
-
-      const result = await podcastManager.createEnhancedPodcast({
+      };      const result = await podcastManager.createEnhancedPodcast({
+        title: formData.title,
+        description: formData.description || `A podcast about ${topic}`,
         topic,
         duration: formData.duration,
         host1VoiceId: formData.host1Voice,
@@ -353,6 +355,76 @@ export default function EventHost({ replicas }: EventHostProps) {
       title: "Link Copied",
       description: "Event link has been copied to clipboard.",
     });
+  };
+
+  const deleteEventHandler = async (eventId: string, eventTitle: string) => {
+    if (!confirm(`Are you sure you want to delete "${eventTitle}"? This action cannot be undone.`)) {
+      return;
+    }
+
+    try {
+      const { error } = await deleteEvent(eventId);
+      
+      if (error) {
+        toast({
+          title: "Error",
+          description: "Failed to delete event: " + error,
+          variant: "destructive",
+        });
+        return;
+      }
+
+      // Remove from local state
+      setEvents(prev => prev.filter(e => e.id !== eventId));
+      
+      toast({
+        title: "Event Deleted",
+        description: `"${eventTitle}" has been deleted successfully.`,
+      });
+    } catch (error) {
+      console.error('Error deleting event:', error);
+      toast({
+        title: "Error",
+        description: "Failed to delete event",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const endEventHandler = async (event: LiveEvent) => {
+    if (!confirm(`Are you sure you want to end "${event.title}"?`)) {
+      return;
+    }
+
+    try {
+      const { error } = await updateEventStatus(event.id, 'ended');
+      
+      if (error) {
+        toast({
+          title: "Error",
+          description: "Failed to end event: " + error,
+          variant: "destructive",
+        });
+        return;
+      }
+
+      // Update local state
+      setEvents(prev => prev.map(e => 
+        e.id === event.id ? { ...e, status: 'ended' } : e
+      ));
+      
+      toast({
+        title: "Event Ended",
+        description: `"${event.title}" has ended successfully.`,
+      });
+    } catch (error) {
+      console.error('Error ending event:', error);
+      toast({
+        title: "Error",
+        description: "Failed to end event",
+        variant: "destructive",
+      });
+    }
   };
 
   if (activeEvent) {
@@ -762,9 +834,7 @@ export default function EventHost({ replicas }: EventHostProps) {
                           </span>
                         )}
                       </div>
-                    </div>
-
-                    <div className="flex items-center gap-2">
+                    </div>                    <div className="flex items-center gap-2">
                       {event.status === 'upcoming' && event.type !== 'podcast' && (
                         <>
                           <Button variant="outline" size="sm" onClick={() => shareEvent(event)}>
@@ -775,28 +845,45 @@ export default function EventHost({ replicas }: EventHostProps) {
                             Start
                           </Button>
                         </>
+                      )}                      {event.status === 'live' && (
+                        <>
+                          <Button variant="outline" size="sm" onClick={() => {
+                            if (event.type === 'podcast') {
+                              window.location.href = event.room_url || '/neurovia?tab=podcasts';
+                            } else {
+                              setActiveEvent(event);
+                            }
+                          }}>
+                            {event.type === 'podcast' ? (
+                              <>
+                                <Headphones className="h-4 w-4 mr-1" />
+                                Listen
+                              </>
+                            ) : (
+                              <>
+                                <Monitor className="h-4 w-4 mr-1" />
+                                Join
+                              </>
+                            )}
+                          </Button>
+                          
+                          {/* End button - available for all live events */}
+                          <Button variant="outline" size="sm" onClick={() => endEventHandler(event)}>
+                            <Square className="h-4 w-4 mr-1" />
+                            End
+                          </Button>
+                        </>
                       )}
-                      {event.status === 'live' && (
-                        <Button variant="outline" size="sm" onClick={() => {
-                          if (event.type === 'podcast') {
-                            window.location.href = event.room_url || '/neurovia?tab=podcasts';
-                          } else {
-                            setActiveEvent(event);
-                          }
-                        }}>
-                          {event.type === 'podcast' ? (
-                            <>
-                              <Headphones className="h-4 w-4 mr-1" />
-                              Listen
-                            </>
-                          ) : (
-                            <>
-                              <Monitor className="h-4 w-4 mr-1" />
-                              Join
-                            </>
-                          )}
-                        </Button>
-                      )}
+                      
+                      {/* Delete button - available for all events */}
+                      <Button 
+                        variant="outline" 
+                        size="sm" 
+                        onClick={() => deleteEventHandler(event.id, event.title)}
+                        className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
                     </div>
                   </div>
                 );
