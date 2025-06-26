@@ -130,7 +130,6 @@ export async function getPersonaServices(personaId: string): Promise<{ data: Per
         .from('persona_services')
         .select('*')
         .eq('persona_id', personaId)
-        .eq('is_active', true)
         .order('created_at', { ascending: false });
 
       if (error) {
@@ -139,6 +138,7 @@ export async function getPersonaServices(personaId: string): Promise<{ data: Per
       }
       
       console.log('✅ Services fetched from database:', services?.length || 0, 'services');
+      console.log('🔎 Service details:', services?.map(s => ({ id: s.id, name: s.service_name, active: s.is_active, type: s.service_type })));
       return { data: services, error: null };
     } catch (dbError) {
       console.log('⚠️ Database not available for fetch, using demo mode:', dbError);
@@ -157,32 +157,38 @@ export async function getPersonaServices(personaId: string): Promise<{ data: Per
 
 /**
  * Get all public services (marketplace view)
+ * All services are visible to all users regardless of creator or status
  */
 export async function getAllPublicServices(): Promise<{ data: PersonaService[] | null; error: string | null }> {
   try {
+    console.log('🌐 Fetching all public services for marketplace');
     const { data: sessionData } = await supabase.auth.getSession();
     const user = sessionData?.session?.user;
     
     if (!user) {
       // Demo mode - return all services from localStorage
-      return { data: getDemoServices(), error: null };
+      const demoServices = getDemoServices();
+      console.log('💿 Fetching from localStorage (no user):', demoServices.length, 'services');
+      return { data: demoServices, error: null };
     }
 
     try {
       const { data: services, error } = await supabase
         .from('persona_services')
         .select('*')
-        .eq('is_active', true)
         .order('created_at', { ascending: false });
 
       if (error) throw error;
+      console.log('✅ All services fetched for marketplace:', services?.length || 0, 'services');
       return { data: services, error: null };
     } catch (dbError) {
-      console.log('Database not available, using demo mode');
-      return { data: getDemoServices(), error: null };
+      console.log('⚠️ Database not available, using demo mode:', dbError);
+      const demoServices = getDemoServices();
+      console.log('💿 Fetching from localStorage (fallback):', demoServices.length, 'services');
+      return { data: demoServices, error: null };
     }
   } catch (error) {
-    console.error('Error fetching public services:', error);
+    console.error('💥 Error fetching public services:', error);
     return { 
       data: null, 
       error: error instanceof Error ? error.message : 'Unknown error occurred' 
@@ -382,7 +388,6 @@ export async function getAllPersonaServices(): Promise<{ data: any[] | null; err
             attributes
           )
         `)
-        .eq('is_active', true)
         .order('created_at', { ascending: false });
 
       if (error) throw error;
@@ -581,6 +586,52 @@ export async function accessServiceContent(deliveryId: string): Promise<{ data: 
       data: null, 
       error: error instanceof Error ? error.message : 'Unknown error occurred' 
     };
+  }
+}
+
+/**
+ * DEBUG: Get all services in the database (for debugging purposes)
+ */
+export async function getAllServicesDebug(): Promise<void> {
+  try {
+    const { data: sessionData } = await supabase.auth.getSession();
+    const user = sessionData?.session?.user;
+    
+    if (user) {
+      const { data: allServices, error } = await supabase
+        .from('persona_services')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+      if (error) {
+        console.error('❌ Error fetching all services:', error);
+      } else {
+        console.log('🔍 ALL SERVICES IN DATABASE:', allServices?.length || 0);
+        console.log('📊 Service breakdown by persona:');
+        
+        const servicesByPersona = allServices?.reduce((acc: any, service: any) => {
+          if (!acc[service.persona_id]) {
+            acc[service.persona_id] = [];
+          }
+          acc[service.persona_id].push({
+            id: service.id,
+            name: service.service_name,
+            type: service.service_type,
+            active: service.is_active,
+            created: service.created_at
+          });
+          return acc;
+        }, {});
+        
+        Object.entries(servicesByPersona || {}).forEach(([personaId, services]: [string, any]) => {
+          console.log(`🎭 Persona ${personaId}: ${services.length} services`, services);
+        });
+      }
+    } else {
+      console.log('❌ No user authenticated - cannot check database');
+    }
+  } catch (error) {
+    console.error('💥 Error in debug function:', error);
   }
 }
 

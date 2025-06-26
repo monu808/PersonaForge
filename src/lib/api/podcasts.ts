@@ -80,11 +80,10 @@ export async function getUserPodcasts(): Promise<Podcast[]> {
       return [];
     }
 
-    console.log('[Podcasts] User authenticated, fetching podcasts for user:', session.user.id);
+    console.log('[Podcasts] User authenticated, fetching all public podcasts');
     
-    // Main strategy: Progressive data recovery approach
-    // First get all IDs, then fetch data row by row to handle corrupted data
-    return await fetchPodcastsProgressively(session.user.id);
+    // Fetch all public podcasts from all users
+    return await fetchAllPublicPodcasts();
     
   } catch (error) {
     console.error('[Podcasts] Unexpected error in getUserPodcasts:', error);
@@ -173,6 +172,50 @@ async function fetchPodcastsProgressively(userId: string): Promise<Podcast[]> {
     console.error('[Podcasts] Progressive fetch failed:', error);
     // Fall back to minimal fetch
     return await fetchPodcastsMinimal(userId);
+  }
+}
+
+/**
+ * Fetch all public podcasts from all users
+ */
+async function fetchAllPublicPodcasts(): Promise<Podcast[]> {
+  console.log('[Podcasts] Fetching all public podcasts');
+  
+  try {
+    // Try to fetch all public podcasts first
+    const { data, error } = await supabase
+      .from('podcasts')
+      .select('id, title, description, audio_url, duration_minutes, created_at, status, user_id, topic, host1_voice_name, host2_voice_name')
+      .eq('status', 'completed')
+      .order('created_at', { ascending: false })
+      .limit(50); // Limit to 50 most recent podcasts
+    
+    if (error) {
+      console.error('[Podcasts] Error fetching public podcasts:', error);
+      // Fallback to user's own podcasts
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session?.user) {
+        return await fetchPodcastsProgressively(session.user.id);
+      }
+      return [];
+    }
+    
+    const podcasts = (data || []).map(validateAndCleanPodcast);
+    console.log(`[Podcasts] Successfully fetched ${podcasts.length} public podcasts`);
+    return podcasts;
+    
+  } catch (error) {
+    console.error('[Podcasts] Error in fetchAllPublicPodcasts:', error);
+    // Fallback to user's own podcasts
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session?.user) {
+        return await fetchPodcastsProgressively(session.user.id);
+      }
+    } catch (fallbackError) {
+      console.error('[Podcasts] Fallback failed:', fallbackError);
+    }
+    return [];
   }
 }
 
@@ -443,6 +486,7 @@ export async function createPodcastRecord(podcastRequest: PodcastRequest): Promi
       host2_voice_name: getVoiceName(host2VoiceId),
       audio_url: '', // Will be updated later
       status: 'pending', // Use 'pending' instead of 'processing' as default
+      visibility: 'public', // Make all podcasts public by default
       user_id: session.user.id
     };
 

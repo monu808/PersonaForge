@@ -264,10 +264,7 @@ export default function Neurovia() {
                 </button>
               ))}
             </div>            <div className="flex items-center space-x-4">
-              <button className="bg-gradient-to-r from-cyan-500 to-purple-500 text-white px-6 py-3 rounded-xl hover:opacity-90 transition-opacity font-semibold flex items-center space-x-2">
-                <Crown className="h-4 w-4" />
-                <span>Premium</span>
-              </button>
+              {/* Removed Premium badge */}
             </div>
           </div>
         </div>

@@ -60,8 +60,17 @@ export function LiveEvents() {
   };
   const handleJoinEvent = async (event: LiveEvent) => {
     if (event.type === 'podcast') {
-      // For podcasts, just navigate to the podcast page
-      window.location.href = '/neurovia?tab=podcasts';
+      // For podcasts, check if there's a specific room_url or navigate to the podcast page
+      if (event.room_url && event.room_url !== '/neurovia?tab=podcasts') {
+        // If there's a specific podcast URL, use it
+        window.location.href = event.room_url;
+      } else {
+        // Navigate to the podcast page and highlight this specific podcast if possible
+        const podcastUrl = `/neurovia?tab=podcasts`;
+        // You could add a query parameter to highlight a specific podcast:
+        // const podcastUrl = `/neurovia?tab=podcasts&highlight=${event.id}`;
+        window.location.href = podcastUrl;
+      }
       return;
     }
 
@@ -308,7 +317,14 @@ export function LiveEvents() {
                     <Button
                       variant="outline"
                       size="sm"
-                      onClick={() => window.location.href = '/neurovia?tab=podcasts'}
+                      onClick={() => {
+                        // Use the same logic as handleJoinEvent for consistency
+                        if (event.room_url && event.room_url !== '/neurovia?tab=podcasts') {
+                          window.location.href = event.room_url;
+                        } else {
+                          window.location.href = '/neurovia?tab=podcasts';
+                        }
+                      }}
                       className="text-white/60 border-white/20 hover:text-white hover:border-white/40"
                     >
                       <Play className="h-4 w-4 mr-1" />

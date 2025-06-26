@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
-import { Loader2, Send, Bot, User, MessageSquare, Sparkles, Zap, Clock } from 'lucide-react';
+import { Loader2, Send, Bot, User, MessageSquare, Sparkles, Zap, Clock, CheckCircle } from 'lucide-react';
 import { toast } from '@/components/ui/use-toast';
 import { 
   geminiChatService, 
@@ -14,6 +14,7 @@ import {
   getChatStats,
   getChatDuration 
 } from '@/lib/api/gemini-chat';
+import { checkPersonaAccess, PersonaAccess } from '@/lib/api/persona-access';
 import { motion } from 'framer-motion';
 
 interface PersonaChatProps {
@@ -45,18 +46,31 @@ export function PersonaChat({ persona, onClose }: PersonaChatProps) {
   });
   const [streamingResponse, setStreamingResponse] = useState('');
   const [isStreaming, setIsStreaming] = useState(false);
+  const [personaAccess, setPersonaAccess] = useState<PersonaAccess | null>(null);
+  const [hasPurchasedAccess, setHasPurchasedAccess] = useState(false);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
+    const checkAccess = async () => {
+      try {
+        const accessResult = await checkPersonaAccess(persona.id, 'consultation');
+        setHasPurchasedAccess(accessResult.hasAccess);
+        setPersonaAccess(accessResult.access || null);
+      } catch (error) {
+        console.error('Error checking persona access:', error);
+      }
+    };
+
+    checkAccess();
     startChatSession();
     return () => {
       if (sessionId) {
         geminiChatService.endChat(sessionId);
       }
     };
-  }, []);
+  }, [persona.id]);
 
   useEffect(() => {
     scrollToBottom();
@@ -197,6 +211,12 @@ export function PersonaChat({ persona, onClose }: PersonaChatProps) {
                     <Sparkles className="h-3 w-3" />
                     AI Chat
                   </Badge>
+                  {hasPurchasedAccess && (
+                    <Badge variant="default" className="flex items-center gap-1 bg-green-100 text-green-800 border-green-200">
+                      <CheckCircle className="h-3 w-3" />
+                      Premium Access
+                    </Badge>
+                  )}
                 </CardTitle>
                 <p className="text-sm text-gray-600 max-w-md truncate">
                   {persona.description || "AI-powered persona ready to chat"}
@@ -224,6 +244,26 @@ export function PersonaChat({ persona, onClose }: PersonaChatProps) {
         </CardHeader>
 
         <CardContent className="flex-1 flex flex-col p-0 overflow-hidden">
+          {/* Access Status Info */}
+          {hasPurchasedAccess && personaAccess && (
+            <div className="p-3 bg-green-50 border-b border-green-200">
+              <div className="flex items-center gap-2 text-sm text-green-800">
+                <CheckCircle className="h-4 w-4" />
+                <span className="font-medium">Premium Access Active</span>
+                {personaAccess.max_usage && (
+                  <span className="text-green-600">
+                    • {(personaAccess.max_usage - (personaAccess.usage_count || 0))} uses remaining
+                  </span>
+                )}
+                {personaAccess.expires_at && (
+                  <span className="text-green-600">
+                    • Expires {new Date(personaAccess.expires_at).toLocaleDateString()}
+                  </span>
+                )}
+              </div>
+            </div>
+          )}
+          
           {/* Messages Area */}
           <ScrollArea className="flex-1 p-4">
             <div className="space-y-4">

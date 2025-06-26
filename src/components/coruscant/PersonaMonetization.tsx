@@ -892,74 +892,7 @@ export default function PersonaMonetization({ replicas }: PersonaMonetizationPro
         </Card>
       )}
 
-      {/* Integration Features */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        {/* RevenueCat Integration */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <CreditCard className="h-5 w-5" />
-              RevenueCat Subscriptions
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <p className="text-sm text-gray-600">
-              Set up recurring subscriptions for premium persona access
-            </p>
-            <div className="space-y-2">
-              <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                <span className="text-sm">Basic Plan</span>
-                <span className="font-semibold">$9.99/month</span>
-              </div>
-              <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                <span className="text-sm">Premium Plan</span>
-                <span className="font-semibold">$19.99/month</span>
-              </div>
-              <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                <span className="text-sm">VIP Plan</span>
-                <span className="font-semibold">$49.99/month</span>
-              </div>
-            </div>
-            <Button variant="outline" className="w-full">
-              <Settings className="h-4 w-4 mr-2" />
-              Configure RevenueCat
-            </Button>
-          </CardContent>
-        </Card>
 
-        {/* Algorand NFTs */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Star className="h-5 w-5" />
-              Algorand NFT Collections
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <p className="text-sm text-gray-600">
-              Create and sell unique NFT collectibles of your personas
-            </p>
-            <div className="space-y-2">
-              <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                <span className="text-sm">Profile Picture NFTs</span>
-                <span className="font-semibold">◎ 50 ALGO</span>
-              </div>
-              <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                <span className="text-sm">Exclusive Videos</span>
-                <span className="font-semibold">◎ 100 ALGO</span>
-              </div>
-              <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                <span className="text-sm">Limited Edition</span>
-                <span className="font-semibold">◎ 500 ALGO</span>
-              </div>
-            </div>
-            <Button variant="outline" className="w-full">
-              <Trophy className="h-4 w-4 mr-2" />
-              Create NFT Collection
-            </Button>
-          </CardContent>
-        </Card>
-      </div>
 
       {/* Monetization Examples */}
       <Card>

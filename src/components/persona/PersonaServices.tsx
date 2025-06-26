@@ -31,13 +31,12 @@ import {
   updatePersonaService, 
   deletePersonaService,
   getUserPurchases,
-  getUserPurchasedServices
+  getUserPurchasedServices,
+  getAllPersonaServices
 } from '@/lib/api/persona-services';
 import { 
   connectWallet, 
   disconnectWallet, 
-  getConnectedWallet, 
-  isWalletConnected,
   getAccountBalance,
   payForService,
   initializeWalletFromDatabase
@@ -48,6 +47,8 @@ interface PersonaServicesProps {
   persona: any;
   isOwner: boolean;
   onServicePurchased?: (service: PersonaService) => void;
+  showAllServices?: boolean; // New prop for marketplace view
+  selectedServiceId?: string; // New prop to highlight a specific service
 }
 
 interface CreateServiceFormData {
@@ -80,7 +81,7 @@ const SERVICE_TYPE_LABELS = {
   custom: 'Custom Service'
 };
 
-export function PersonaServices({ persona, isOwner, onServicePurchased }: PersonaServicesProps) {  const [services, setServices] = useState<PersonaService[]>([]);
+export function PersonaServices({ persona, isOwner, onServicePurchased, showAllServices = false, selectedServiceId }: PersonaServicesProps) {  const [services, setServices] = useState<PersonaService[]>([]);
   const [purchases, setPurchases] = useState<any[]>([]);
   const [purchasedServices, setPurchasedServices] = useState<any[]>([]);
   const [showCreateForm, setShowCreateForm] = useState(false);
@@ -130,9 +131,14 @@ export function PersonaServices({ persona, isOwner, onServicePurchased }: Person
     try {
       setLoading(true);
       
-      // Load services
-      const { data: servicesData } = await getPersonaServices(persona.id);
-      setServices(servicesData || []);
+      // Load services - use getAllPersonaServices for marketplace view
+      if (showAllServices) {
+        const { data: servicesData } = await getAllPersonaServices();
+        setServices(servicesData || []);
+      } else {
+        const { data: servicesData } = await getPersonaServices(persona.id);
+        setServices(servicesData || []);
+      }
 
       // Load purchases if not owner
       if (!isOwner) {
@@ -409,9 +415,12 @@ export function PersonaServices({ persona, isOwner, onServicePurchased }: Person
       console.log('Payment result:', result);
 
       if (result.success) {
+        // Grant access to persona features based on service type
+        await grantPersonaAccess(service);
+        
         toast({
           title: "Payment Successful",
-          description: `Successfully purchased ${service.service_name}`,
+          description: `Successfully purchased ${service.service_name}. You now have access to this persona's ${service.service_type.replace('_', ' ')} features.`,
         });
         
         // Refresh balance and purchases
@@ -420,6 +429,23 @@ export function PersonaServices({ persona, isOwner, onServicePurchased }: Person
         
         if (onServicePurchased) {
           onServicePurchased(service);
+        }
+        
+        // Show quick access options for specific service types
+        if (service.service_type === 'consultation') {
+          setTimeout(() => {
+            toast({
+              title: "Quick Access",
+              description: "Click 'Start Conversation' to begin your consultation session."
+            });
+          }, 2000);
+        } else if (service.service_type === 'video_call') {
+          setTimeout(() => {
+            toast({
+              title: "Video Call Access",
+              description: "Your video call access is now active for 30 days. Contact the persona owner to schedule."
+            });
+          }, 2000);
         }
         
         // Refresh purchases data
@@ -458,6 +484,38 @@ export function PersonaServices({ persona, isOwner, onServicePurchased }: Person
     });
     setFileUploadProgress(null);
     setFileUploadError(null);
+  };
+
+  const grantPersonaAccess = async (service: PersonaService) => {
+    try {
+      // Import the function locally to avoid unused import error
+      const { grantPersonaAccess: grantAccess } = await import('@/lib/api/persona-access');
+      
+      // Determine access parameters based on service type
+      const options: { maxUsage?: number; expiresInDays?: number } = {};
+      
+      if (service.service_type === 'consultation') {
+        options.maxUsage = 1; // Consultations are one-time use
+      } else if (service.service_type === 'video_call') {
+        options.expiresInDays = 30; // Video calls expire in 30 days
+      }
+      
+      const success = await grantAccess(
+        service.persona_id,
+        service.id,
+        service.service_type,
+        walletAddress || '',
+        options
+      );
+      
+      if (success) {
+        console.log('Successfully granted persona access');
+      } else {
+        console.error('Failed to grant persona access');
+      }
+    } catch (error) {
+      console.error('Error granting persona access:', error);
+    }
   };
   const startEdit = (service: PersonaService) => {    setEditingService(service);
     setFormData({
@@ -564,12 +622,19 @@ export function PersonaServices({ persona, isOwner, onServicePurchased }: Person
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div>
           <h3 className="text-2xl font-bold text-white mb-2">
-            {isOwner ? 'Monetize Your Persona' : `${persona.name} Services`}
+            {showAllServices 
+              ? 'All Available Services' 
+              : isOwner 
+                ? 'Monetize Your Persona' 
+                : `${persona.name} Services`
+            }
           </h3>
           <p className="text-white/60">
-            {isOwner 
-              ? 'Create and manage services for your persona' 
-              : 'Purchase services from this persona using Algorand'
+            {showAllServices
+              ? 'Browse and purchase services from all AI personas'
+              : isOwner 
+                ? 'Create and manage services for your persona' 
+                : 'Purchase services from this persona using Algorand'
             }
           </p>
         </div>
@@ -660,7 +725,7 @@ export function PersonaServices({ persona, isOwner, onServicePurchased }: Person
             </Button>
             
             {/* Create Service Button (Owner Only) */}
-            {isOwner && (
+            {isOwner && !showAllServices && (
               <Button
                 onClick={() => setShowCreateForm(true)}
                 className="bg-gradient-to-r from-green-500 to-blue-500 hover:opacity-90"
@@ -676,12 +741,19 @@ export function PersonaServices({ persona, isOwner, onServicePurchased }: Person
             <div className="text-center py-12">
               <DollarSign className="h-16 w-16 text-white/30 mx-auto mb-4" />
               <h4 className="text-xl font-semibold text-white mb-2">
-                {isOwner ? 'No Services Created' : 'No Services Available'}
+                {showAllServices 
+                  ? 'No Services Available' 
+                  : isOwner 
+                    ? 'No Services Created' 
+                    : 'No Services Available'
+                }
               </h4>
               <p className="text-white/60 max-w-md mx-auto">
-                {isOwner 
-                  ? 'Start monetizing your persona by creating your first service'
-                  : 'This persona has not created any services yet'
+                {showAllServices
+                  ? 'No services have been created yet across all personas'
+                  : isOwner 
+                    ? 'Start monetizing your persona by creating your first service'
+                    : 'This persona has not created any services yet'
                 }
               </p>
             </div>
@@ -690,11 +762,16 @@ export function PersonaServices({ persona, isOwner, onServicePurchased }: Person
               {services.map((service) => {
                 const IconComponent = SERVICE_TYPE_ICONS[service.service_type];
                 const purchased = isPurchased(service.id);
+                const isSelected = selectedServiceId === service.id;
                 
                 return (
                   <motion.div
                     key={service.id}
-                    className="bg-slate-800/30 rounded-xl p-6 border border-white/10 hover:border-white/20 transition-colors"
+                    className={`bg-slate-800/30 rounded-xl p-6 border transition-colors ${
+                      isSelected 
+                        ? 'border-blue-500/60 bg-blue-500/10' 
+                        : 'border-white/10 hover:border-white/20'
+                    }`}
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
                     whileHover={{ y: -5 }}
@@ -707,10 +784,13 @@ export function PersonaServices({ persona, isOwner, onServicePurchased }: Person
                         <div>
                           <h4 className="font-semibold text-white">{service.service_name}</h4>
                           <p className="text-xs text-blue-300">{SERVICE_TYPE_LABELS[service.service_type]}</p>
+                          {showAllServices && (service as any).persona_name && (
+                            <p className="text-xs text-green-300">by {(service as any).persona_name}</p>
+                          )}
                         </div>
                       </div>
                       
-                      {isOwner && (
+                      {isOwner && !showAllServices && (
                         <div className="flex space-x-2">
                           <button
                             onClick={() => startEdit(service)}

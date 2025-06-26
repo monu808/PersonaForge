@@ -485,11 +485,13 @@ export function ServicesMarketplace() {
               <div className="h-full overflow-y-auto p-6">
                 <PersonaServices 
                   persona={{ 
-                    id: selectedService.persona_id, 
-                    name: selectedService.persona_name || 'AI Persona',
-                    replica_type: selectedService.persona_type || 'AI'
+                    id: 'marketplace-all', // Special ID to indicate marketplace view
+                    name: 'All Services Marketplace',
+                    replica_type: 'marketplace'
                   }} 
                   isOwner={false}
+                  showAllServices={true} // New prop to show all services
+                  selectedServiceId={selectedService.id} // Highlight the selected service
                   onServicePurchased={() => {
                     closeServiceModal();
                     loadServices(); // Refresh the services list
