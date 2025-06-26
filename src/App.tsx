@@ -37,6 +37,7 @@ import { ProtectedRoute } from './components/auth/protected-route';
 import { syncService } from './lib/api/sync-service';
 import { useEffect } from 'react';
 import './index.css';
+import AdminTavusSyncPage from './pages/admin-tavus-sync';
 
 function App() {
   // Initialize sync service when app starts
@@ -164,6 +165,11 @@ function App() {
               } />
               <Route path="database-diagnostic" element={                <ProtectedRoute>
                   <DatabaseDiagnosticPage />
+                </ProtectedRoute>
+              } />
+              <Route path="admin/tavus-sync" element={
+                <ProtectedRoute>
+                  <AdminTavusSyncPage />
                 </ProtectedRoute>
               } />
             </Route>

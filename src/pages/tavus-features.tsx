@@ -247,11 +247,11 @@ export function TavusFeatures() {
                 </Card>
               )}
 
-              {/* TAVUS Sync for existing TAVUS personas */}
-              <TavusSyncComponent 
+              {/* TAVUS Sync for existing TAVUS personas (admin-only, now hidden) */}
+              {/* <TavusSyncComponent 
                 personas={personas} 
                 onSyncComplete={loadPersonas}
-              />
+              /> */}
             </div>
           </div>
         </TabsContent>

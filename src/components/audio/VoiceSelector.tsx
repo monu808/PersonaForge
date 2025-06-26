@@ -7,7 +7,7 @@ import {
   Loader2,
   ChevronDown
 } from 'lucide-react';
-import { ElevenLabsVoice, getAvailableVoices } from '@/lib/api/elevenlabs';
+import { ElevenLabsVoice, getAvailableVoices, getUserVoices } from '@/lib/api/elevenlabs';
 import { toast } from '@/components/ui/use-toast';
 
 interface VoiceSelectorProps {
@@ -48,17 +48,19 @@ export function VoiceSelector({
   const loadVoices = async () => {
     try {
       setIsLoading(true);
-      const elevenlabsVoices = await getAvailableVoices();
-      
-      // Combine default voices with ElevenLabs voices
+      // Fetch public voices (premade)
+      const publicVoices = await getAvailableVoices();
+      // Fetch only the current user's voices (cloned/custom)
+      const userVoices = await getUserVoices();
+      // Only show public voices and the current user's voices
       const allVoices = [
         ...defaultVoices.map(voice => ({
           ...voice,
           category: voice.category || 'default'
         })),
-        ...elevenlabsVoices
+        ...publicVoices.filter(v => v.category === 'premade' || v.category === 'general'),
+        ...userVoices
       ];
-      
       setVoices(allVoices);
     } catch (error) {
       console.error('Error loading voices:', error);
@@ -66,7 +68,6 @@ export function VoiceSelector({
         ...voice,
         category: voice.category || 'default'
       })));
-      
       toast({
         title: "Voice Loading Issue",
         description: "Using default voices. Some features may be limited.",
