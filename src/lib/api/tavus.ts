@@ -82,8 +82,10 @@ export interface TavusPersonaResponse {
 
 // --- Conversation Types ---
 export interface TavusConversationRequest {
-  replica_id: string; // Changed from persona_id to replica_id
+  replica_id: string;
+  persona_id: string;
   conversation_name?: string;
+  conversation_context?: string; // Local use only, not sent to TAVUS API
   callback_url?: string;
   properties?: {
     participant_left_timeout?: number;
@@ -557,19 +559,24 @@ export async function createTavusPersona(data: TavusPersonaRequest): Promise<Tav
       throw new Error('TAVUS_API_KEY not configured');
     }
 
+    // Ensure we have a system_prompt
+    const systemPrompt = data.personality_layers?.llm?.system_prompt || `You are ${data.persona_name}. You are a helpful AI assistant.`;
+    
+    if (!systemPrompt) {
+      throw new Error('system_prompt is required but not provided');
+    }
+
+    // Build the request body with required fields only
     const requestBody: any = {
-      persona_name: data.persona_name
+      persona_name: data.persona_name,
+      system_prompt: systemPrompt
     };
 
-    // Add replica_id if provided
-    if (data.replica_id) {
-      requestBody.replica_id = data.replica_id;
-    }
+    // Note: replica_id cannot be set during persona creation
+    // It must be set in a separate update call after creation
 
-    // Add personality layers if provided
-    if (data.personality_layers) {
-      requestBody.personality_layers = data.personality_layers;
-    }
+    console.log('Creating TAVUS persona with request body:', requestBody);
+    console.log('System prompt being sent:', systemPrompt);
 
     const response = await fetch('https://tavusapi.com/v2/personas', {
       method: 'POST',
@@ -581,9 +588,16 @@ export async function createTavusPersona(data: TavusPersonaRequest): Promise<Tav
     });
 
     const responseData = await response.json();
+    console.log('TAVUS persona creation response:', { 
+      status: response.status, 
+      ok: response.ok,
+      data: responseData 
+    });
 
     if (!response.ok) {
-      throw new Error(responseData.error || `HTTP error! status: ${response.status}`);
+      // More detailed error message
+      const errorDetails = responseData.detail || responseData.error || responseData.message || JSON.stringify(responseData);
+      throw new Error(`Bad Request. ${errorDetails}`);
     }
 
     return {
@@ -602,6 +616,60 @@ export async function createTavusPersona(data: TavusPersonaRequest): Promise<Tav
 }
 
 /**
+ * Creates a minimal Tavus Persona (name only) to test API structure
+ */
+export async function createMinimalTavusPersona(personaName: string): Promise<TavusPersonaResponse> {
+  try {
+    const tavusApiKey = import.meta.env.VITE_TAVUS_API_KEY;
+    
+    if (!tavusApiKey) {
+      throw new Error('TAVUS_API_KEY not configured');
+    }
+
+    // Try with just the name first to see what the API accepts
+    const requestBody = {
+      persona_name: personaName
+    };
+
+    console.log('Creating minimal TAVUS persona with request body:', requestBody);
+
+    const response = await fetch('https://tavusapi.com/v2/personas', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': tavusApiKey,
+      },
+      body: JSON.stringify(requestBody),
+    });
+
+    const responseData = await response.json();
+    console.log('Minimal TAVUS persona creation response:', { 
+      status: response.status, 
+      ok: response.ok,
+      data: responseData 
+    });
+
+    if (!response.ok) {
+      const errorDetails = responseData.detail || responseData.error || responseData.message || JSON.stringify(responseData);
+      throw new Error(`Bad Request. ${errorDetails}`);
+    }
+
+    return {
+      persona_id: responseData.persona_id,
+      status: responseData.status || 'ready',
+      message: responseData.message,
+    };
+  } catch (error) {
+    console.error('Error creating minimal Tavus persona:', error);
+    return { 
+      persona_id: null, 
+      status: 'failed', 
+      error: error instanceof Error ? error.message : String(error) 
+    };
+  }
+}
+
+/**
  * Creates a new Tavus Conversation for real-time video calls.
  */
 export async function createTavusConversation(data: TavusConversationRequest): Promise<TavusConversationResponse> {
@@ -611,7 +679,8 @@ export async function createTavusConversation(data: TavusConversationRequest): P
     if (!tavusApiKey) {
       throw new Error('TAVUS_API_KEY not configured');
     }    const requestBody: any = {
-      replica_id: data.replica_id
+      replica_id: data.replica_id,
+      persona_id: data.persona_id
     };
 
     // Debug logging for API request
@@ -621,6 +690,7 @@ export async function createTavusConversation(data: TavusConversationRequest): P
     if (data.conversation_name) {
       requestBody.conversation_name = data.conversation_name;
     }
+    // Note: conversation_context is not supported by TAVUS API, only used locally
     if (data.callback_url) {
       requestBody.callback_url = data.callback_url;
     }
@@ -727,8 +797,18 @@ export async function listTavusConversations(): Promise<{ conversations: any[]; 
       throw new Error(responseData.error || `HTTP error! status: ${response.status}`);
     }
 
+    // Handle nested structure: {conversations: {data: Array, total_count: number}}
+    let conversationsArray = [];
+    if (responseData.conversations && responseData.conversations.data && Array.isArray(responseData.conversations.data)) {
+      conversationsArray = responseData.conversations.data;
+    } else if (Array.isArray(responseData.conversations)) {
+      conversationsArray = responseData.conversations;
+    } else if (Array.isArray(responseData)) {
+      conversationsArray = responseData;
+    }
+
     return {
-      conversations: responseData.conversations || responseData || [],
+      conversations: conversationsArray,
     };
   } catch (error) {
     console.error('Error listing Tavus conversations:', error);
@@ -1048,6 +1128,209 @@ export async function deletePersonaVideo(
     return { 
       success: false, 
       error: error instanceof Error ? error.message : 'Unknown error occurred' 
+    };
+  }
+}
+
+/**
+ * Gets all existing Tavus Personas from the API.
+ */
+export async function getTavusPersonas(): Promise<{ personas: any[]; error?: string }> {
+  try {
+    const tavusApiKey = import.meta.env.VITE_TAVUS_API_KEY;
+    
+    if (!tavusApiKey) {
+      throw new Error('TAVUS_API_KEY not configured');
+    }
+
+    console.log('Fetching TAVUS personas...');
+    
+    let allPersonas: any[] = [];
+    let hasMore = true;
+    let offset = 0;
+    const limit = 50; // Increase limit to get more personas per request
+
+    while (hasMore) {
+      const url = `https://tavusapi.com/v2/personas?limit=${limit}&offset=${offset}`;
+      console.log(`Fetching personas from: ${url}`);
+      
+      const response = await fetch(url, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-api-key': tavusApiKey,
+        },
+      });
+
+      const responseData = await response.json();
+      console.log(`TAVUS personas response (offset: ${offset}):`, {
+        status: response.status,
+        ok: response.ok,
+        data: responseData
+      });
+
+      if (!response.ok) {
+        throw new Error(responseData.error || `HTTP error! status: ${response.status}`);
+      }
+
+      const personas = responseData.data || responseData.personas || responseData || [];
+      const personasArray = Array.isArray(personas) ? personas : [personas].filter(Boolean);
+      
+      console.log(`Extracted personas (offset: ${offset}):`, personasArray);
+      allPersonas = [...allPersonas, ...personasArray];
+
+      // Check if we have more pages
+      hasMore = personasArray.length === limit;
+      offset += limit;
+
+      // Safety check to prevent infinite loops
+      if (offset > 1000) {
+        console.warn('Reached maximum offset limit, stopping pagination');
+        break;
+      }
+    }
+
+    console.log('All TAVUS personas:', allPersonas);
+    console.log('Total personas found:', allPersonas.length);
+
+    // Look for the specific persona ID the user mentioned
+    const targetPersona = allPersonas.find(p => p.persona_id === 'p5cb2b4babaa');
+    if (targetPersona) {
+      console.log('Found target persona p5cb2b4babaa:', targetPersona);
+    } else {
+      console.log('Target persona p5cb2b4babaa NOT found');
+      console.log('Available persona IDs:', allPersonas.map(p => p.persona_id));
+    }
+    
+    return {
+      personas: allPersonas,
+    };
+  } catch (error) {
+    console.error('Error fetching Tavus personas:', error);
+    return { 
+      personas: [],
+      error: error instanceof Error ? error.message : String(error) 
+    };
+  }
+}
+
+/**
+ * Gets a specific Tavus Persona by ID from the API.
+ */
+export async function getTavusPersonaById(personaId: string): Promise<{ persona: any; error?: string }> {
+  try {
+    const tavusApiKey = import.meta.env.VITE_TAVUS_API_KEY;
+    
+    if (!tavusApiKey) {
+      throw new Error('TAVUS_API_KEY not configured');
+    }
+
+    console.log(`Fetching TAVUS persona by ID: ${personaId}`);
+    const response = await fetch(`https://tavusapi.com/v2/personas/${personaId}`, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': tavusApiKey,
+      },
+    });
+
+    const responseData = await response.json();
+    console.log(`TAVUS persona by ID response for ${personaId}:`, {
+      status: response.status,
+      ok: response.ok,
+      data: responseData
+    });
+
+    if (!response.ok) {
+      if (response.status === 404) {
+        return { 
+          persona: null, 
+          error: `Persona with ID ${personaId} not found` 
+        };
+      }
+      throw new Error(responseData.error || `HTTP error! status: ${response.status}`);
+    }
+
+    return {
+      persona: responseData,
+    };
+  } catch (error) {
+    console.error(`Error fetching Tavus persona ${personaId}:`, error);
+    return { 
+      persona: null,
+      error: error instanceof Error ? error.message : String(error) 
+    };
+  }
+}
+
+/**
+ * Updates a TAVUS persona with replica_id
+ */
+export async function updateTavusPersonaWithReplica(personaId: string, replicaId: string): Promise<{ success: boolean; error?: string }> {
+  try {
+    const tavusApiKey = import.meta.env.VITE_TAVUS_API_KEY;
+    
+    if (!tavusApiKey) {
+      throw new Error('TAVUS_API_KEY not configured');
+    }
+
+    // Try different possible field names for the replica association
+    const possibleUpdates = [
+      { replica_id: replicaId },
+      { default_replica_id: replicaId },
+      { replica: replicaId },
+      { associated_replica_id: replicaId }
+    ];
+
+    for (const updateBody of possibleUpdates) {
+      console.log(`Attempting to update TAVUS persona ${personaId} with:`, updateBody);
+
+      const response = await fetch(`https://tavusapi.com/v2/personas/${personaId}`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-api-key': tavusApiKey,
+        },
+        body: JSON.stringify(updateBody),
+      });
+
+      const responseData = await response.json();
+      console.log(`Update response for ${JSON.stringify(updateBody)}:`, { 
+        status: response.status, 
+        ok: response.ok,
+        data: responseData 
+      });
+
+      if (response.ok) {
+        console.log('Successfully updated TAVUS persona with replica_id');
+        return { success: true };
+      }
+
+      // If it's just an unknown field error, try the next one
+      if (response.status === 400 && responseData.detail && typeof responseData.detail === 'object') {
+        const fieldErrors = Object.keys(responseData.detail);
+        if (fieldErrors.some(field => responseData.detail[field]?.includes?.('Unknown field.'))) {
+          console.log(`Field ${Object.keys(updateBody)[0]} not recognized, trying next option...`);
+          continue;
+        }
+      }
+
+      // If it's a different kind of error, log it but continue trying
+      console.log(`Update attempt failed with status ${response.status}, trying next option...`);
+    }
+
+    // If we get here, none of the field names worked
+    console.log('All update attempts failed - replica association may not be supported via API');
+    return { 
+      success: false, 
+      error: 'Unable to associate replica with persona via API - this may need to be done through the TAVUS dashboard' 
+    };
+
+  } catch (error) {
+    console.error('Error updating Tavus persona:', error);
+    return { 
+      success: false, 
+      error: error instanceof Error ? error.message : String(error) 
     };
   }
 }

@@ -331,7 +331,7 @@ export async function getPersonaAudios(personaId: string): Promise<any[]> {
     const user = sessionData?.session?.user;
     if (!user) throw new Error('Not authenticated');
 
-    // Fetch audio content from the database
+    // Fetch audio content from the database (user filtering happens server-side)
     const { data, error } = await supabase
       .from('persona_content')
       .select('*')
@@ -360,7 +360,7 @@ export async function getAllUserAudios(): Promise<any[]> {
     const user = sessionData?.session?.user;
     if (!user) throw new Error('Not authenticated');
 
-    // Fetch all audio content for the user (including demo audio)
+    // Fetch all audio content (note: user filtering happens server-side)
     const { data, error } = await supabase
       .from('persona_content')
       .select('*')

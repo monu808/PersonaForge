@@ -74,9 +74,9 @@ export default function Navbar() {
             </Link>
             <Link
               to="/coruscant"
-              className="text-gray-600 hover:text-primary-600 px-3 py-2 text-sm font-medium transition-colors rounded-md"
+              className="px-3 py-2 text-sm font-medium transition-colors rounded-md"
             >
-              Coruscant
+              <span className="coruscant-animated">Coruscant</span>
             </Link>            <Link
               to="/elevenlabs"
               className="text-gray-600 hover:text-primary-600 px-3 py-2 text-sm font-medium transition-colors rounded-md"
@@ -224,10 +224,10 @@ export default function Navbar() {
             </Link>
             <Link
               to="/coruscant"
-              className="block px-3 py-2 rounded-md text-base font-medium text-gray-700 hover:text-primary-600 hover:bg-gray-50"
+              className="block px-3 py-2 rounded-md text-base font-medium hover:bg-gray-50"
               onClick={() => setIsMobileMenuOpen(false)}
             >
-              Coruscant
+              <span className="coruscant-animated">Coruscant</span>
             </Link>            <Link
               to="/elevenlabs"
               className="block px-3 py-2 rounded-md text-base font-medium text-gray-700 hover:text-primary-600 hover:bg-gray-50"

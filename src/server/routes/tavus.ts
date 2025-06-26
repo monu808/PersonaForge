@@ -103,7 +103,7 @@ router.post('/personas', async (req, res) => {
  */
 router.post('/conversations', async (req, res) => {
   try {
-    const { replica_id, conversation_name, properties } = req.body;
+    const { replica_id, persona_id, conversation_name, conversation_context, properties } = req.body;
 
     if (!replica_id) {
       return res.status(400).json({
@@ -111,12 +111,21 @@ router.post('/conversations', async (req, res) => {
       });
     }
 
+    if (!persona_id) {
+      return res.status(400).json({
+        error: 'persona_id is required'
+      });
+    }
+
+    // Note: conversation_context is only used locally, not sent to TAVUS API
     // Add callback URL for webhook notifications
     const callbackUrl = `${process.env.BASE_URL}/api/tavus/webhook/conversation`;
 
     const result = await createTavusConversation({
       replica_id,
+      persona_id,
       conversation_name,
+      conversation_context,
       callback_url: callbackUrl,
       properties
     });

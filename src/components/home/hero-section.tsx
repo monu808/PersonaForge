@@ -49,18 +49,20 @@ export function HeroSection() {
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.5, delay: 0.1 }}
               >
-                <span className="block">Create and Customize</span>
+                <span className="block">Comprehensive AI</span>
                 <span className="block mt-2 bg-gradient-to-r from-primary-600 via-purple-500 to-secondary-600 bg-clip-text text-transparent">
-                  AI Personas
+                  Persona Platform
                 </span>
-              </motion.h1>              <motion.p
+              </motion.h1>
+
+              <motion.p
                 className="mt-6 max-w-xl text-lg text-gray-600"
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.5, delay: 0.2 }}
               >
-                Design intelligent personas with unique personalities, voices, and behaviors. 
-                Perfect for businesses, creators, and professionals seeking custom AI solutions.
+                Create, manage, and interact with AI personas through video generation, voice synthesis, 
+                and real-time conversations. The all-in-one platform for professional AI persona development.
               </motion.p>
 
               {/* Special Neurovia Highlight */}
@@ -83,7 +85,7 @@ export function HeroSection() {
                       Neurovia
                     </h3>
                     <p className="text-sm text-gray-600">
-                      Experience AI personas in live events, podcasts & neural interactions
+                      AI persona marketplace - discover, explore, and interact with AI personas from creators worldwide
                     </p>
                   </div>
                 </div>

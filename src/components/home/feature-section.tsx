@@ -1,50 +1,49 @@
-import React from "react";
 import { motion } from "framer-motion";
 import { 
-  Brain, 
-  CpuIcon, 
-  Fingerprint, 
-  Layers, 
-  Shield, 
-  Sparkles 
+  Video, 
+  Mic, 
+  MessageSquare, 
+  Users, 
+  CreditCard, 
+  RefreshCw
 } from "lucide-react";
 
 const features = [
   {
-    name: "Personality Customization",
+    name: "AI Video Generation",
     description:
-      "Design personas with unique personality traits, from friendly and empathetic to analytical and professional.",
-    icon: Brain,
+      "Create stunning videos with digital replicas using Tavus integration. Record training videos and generate content with AI-powered avatars.",
+    icon: Video,
   },
   {
-    name: "Voice & Behavior Settings",
+    name: "Voice Synthesis & Cloning",
     description:
-      "Customize voice characteristics and behavioral responses to create natural, consistent interactions.",
-    icon: Sparkles,
+      "Advanced text-to-speech and voice cloning with ElevenLabs. Create custom voices, convert speech-to-speech, and generate singing voices.",
+    icon: Mic,
   },
   {
-    name: "Knowledge Integration",
+    name: "Real-time AI Conversations",
     description:
-      "Connect your personas to specialized knowledge bases and data sources for industry-specific expertise.",
-    icon: CpuIcon,
+      "Engage in natural conversations with AI personas powered by Google Gemini. Context-aware responses based on personality traits.",
+    icon: MessageSquare,
   },
   {
-    name: "Multi-platform Deployment",
+    name: "Persona Management",
     description:
-      "Deploy your personas across websites, mobile apps, customer service platforms, and more.",
-    icon: Layers,
+      "Comprehensive persona builder with visual interface, personality traits, voice configuration, and behavioral customization.",
+    icon: Users,
   },
   {
-    name: "Secure Development",
+    name: "Subscription & Billing",
     description:
-      "Enterprise-grade security with data encryption and privacy-first design principles.",
-    icon: Shield,
+      "Integrated Stripe payment processing with tiered plans, usage-based billing, and RevenueCat analytics for cross-platform insights.",
+    icon: CreditCard,
   },
   {
-    name: "Authentication & Verification",
+    name: "Real-time Synchronization",
     description:
-      "Built-in authentication and verification systems to protect your personas and your users.",
-    icon: Fingerprint,
+      "Cross-platform data sync between Coruscant and Neurovia with live activity tracking and event-driven architecture.",
+    icon: RefreshCw,
   },
 ];
 
@@ -54,13 +53,14 @@ export function FeatureSection() {
       <div className="mx-auto max-w-7xl px-6 lg:px-8">
         <div className="mx-auto max-w-2xl text-center">
           <h2 className="text-base font-semibold leading-7 text-primary-600">
-            Powerful Capabilities
+            Complete AI Platform
           </h2>
           <p className="mt-2 text-3xl font-bold tracking-tight text-gray-900 sm:text-4xl">
-            Everything you need to create exceptional AI personas
+            Everything you need for AI persona development
           </p>
           <p className="mt-6 text-lg leading-8 text-gray-600">
-            Our comprehensive platform provides all the tools to design, develop, and deploy sophisticated AI personas for any use case.
+            From video generation and voice synthesis to real-time conversations and subscription management - 
+            PersonaForge provides the complete toolkit for professional AI persona creation.
           </p>
         </div>
         <div className="mx-auto mt-16 max-w-2xl sm:mt-20 lg:mt-24 lg:max-w-none">

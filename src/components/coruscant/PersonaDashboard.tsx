@@ -1,6 +1,5 @@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
 import { 
   Play, 
   Settings, 
@@ -8,12 +7,12 @@ import {
   Mic, 
   MoreVertical,
   Plus,
-  ExternalLink,
   Edit,
   Trash
 } from 'lucide-react';
 import { toast } from '@/components/ui/use-toast';
 import { deletePersona as deletePersonaAPI } from '@/lib/api/personas';
+import { useNavigate } from 'react-router-dom';
 
 interface Replica {
   id: string;
@@ -31,15 +30,21 @@ interface PersonaDashboardProps {
   loading: boolean;
   onReload: () => void;
   onPersonaDeleted?: () => void; // Add callback for when persona is deleted
+  onTabChange?: (tab: string) => void; // Add callback for tab changes
 }
 
-export default function PersonaDashboard({ replicas, loading, onReload, onPersonaDeleted }: PersonaDashboardProps) {
+export default function PersonaDashboard({ replicas, loading, onReload, onPersonaDeleted, onTabChange }: PersonaDashboardProps) {
+  const navigate = useNavigate();
+  
   const launchPersona = (replica: Replica) => {
+    // Navigate to monetize section in Coruscant
+    if (onTabChange) {
+      onTabChange('monetize');
+    }
     toast({
       title: "Launching Persona",
-      description: `${replica.name} is coming online...`,
+      description: `${replica.name} is being launched for monetization...`,
     });
-    // TODO: Implement persona launch logic
   };
 
   const editPersona = (replica: Replica) => {
@@ -48,6 +53,19 @@ export default function PersonaDashboard({ replicas, loading, onReload, onPerson
       description: `Opening editor for ${replica.name}`,
     });
     // TODO: Implement persona editing
+  };
+
+  // New functions for quick action buttons
+  const handleVideoAction = () => {
+    navigate('/tavus-features');
+  };
+
+  const handleVoiceAction = () => {
+    navigate('/elevenlabs');
+  };
+
+  const handleLiveAction = () => {
+    navigate('/tavus-features');
   };  const deletePersona = async (replica: Replica) => {
     try {
       const { error } = await deletePersonaAPI(replica.id);
@@ -179,18 +197,27 @@ export default function PersonaDashboard({ replicas, loading, onReload, onPerson
               <CardContent className="space-y-4">
                 {/* Capabilities */}
                 <div className="grid grid-cols-3 gap-2 text-center">
-                  <div className="p-2 bg-gray-50 rounded-lg">
+                  <button 
+                    className="p-2 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors cursor-pointer"
+                    onClick={handleVideoAction}
+                  >
                     <Video className="h-5 w-5 mx-auto mb-1 text-blue-500" />
                     <p className="text-xs text-muted-foreground">Video</p>
-                  </div>
-                  <div className="p-2 bg-gray-50 rounded-lg">
+                  </button>
+                  <button 
+                    className="p-2 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors cursor-pointer"
+                    onClick={handleVoiceAction}
+                  >
                     <Mic className="h-5 w-5 mx-auto mb-1 text-green-500" />
                     <p className="text-xs text-muted-foreground">Voice</p>
-                  </div>
-                  <div className="p-2 bg-gray-50 rounded-lg">
+                  </button>
+                  <button 
+                    className="p-2 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors cursor-pointer"
+                    onClick={handleLiveAction}
+                  >
                     <Play className="h-5 w-5 mx-auto mb-1 text-purple-500" />
                     <p className="text-xs text-muted-foreground">Live</p>
-                  </div>
+                  </button>
                 </div>
 
                 {/* Actions */}
@@ -210,58 +237,10 @@ export default function PersonaDashboard({ replicas, loading, onReload, onPerson
                     <Trash className="h-4 w-4" />
                   </Button>
                 </div>
-
-                {/* Quick Actions */}
-                <div className="pt-2 border-t">
-                  <p className="text-xs text-muted-foreground mb-2">Quick Launch:</p>
-                  <div className="flex gap-1">
-                    <Button variant="ghost" size="sm" className="text-xs h-7">
-                      Chat
-                    </Button>
-                    <Button variant="ghost" size="sm" className="text-xs h-7">
-                      Video Call
-                    </Button>
-                    <Button variant="ghost" size="sm" className="text-xs h-7">
-                      Event
-                    </Button>
-                  </div>
-                </div>
               </CardContent>
             </Card>
           ))}
         </div>
-      )}
-
-      {/* Quick Actions Section */}
-      {replicas.length > 0 && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-lg">Quick Actions</CardTitle>
-            <p className="text-sm text-muted-foreground">
-              Common actions you can take with your personas
-            </p>
-          </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              <Button variant="outline" className="h-auto p-4 flex-col">
-                <Video className="h-6 w-6 mb-2 text-blue-500" />
-                <span className="text-sm">Create Video</span>
-              </Button>
-              <Button variant="outline" className="h-auto p-4 flex-col">
-                <Mic className="h-6 w-6 mb-2 text-green-500" />
-                <span className="text-sm">Record Audio</span>
-              </Button>
-              <Button variant="outline" className="h-auto p-4 flex-col">
-                <Play className="h-6 w-6 mb-2 text-purple-500" />
-                <span className="text-sm">Start Event</span>
-              </Button>
-              <Button variant="outline" className="h-auto p-4 flex-col">
-                <ExternalLink className="h-6 w-6 mb-2 text-orange-500" />
-                <span className="text-sm">Share Link</span>
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
       )}
     </div>
   );

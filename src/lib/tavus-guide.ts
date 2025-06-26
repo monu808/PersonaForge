@@ -19,7 +19,7 @@ export const TAVUS_VIDEO_REQUIREMENTS = {
   SUPABASE_LIMIT_MB: 50, // Actual Supabase storage limit
   
   // Consent requirements
-  REQUIRED_CONSENT_PHRASE: "I hereby give my consent to create an AI replica of myself.",
+  REQUIRED_CONSENT_PHRASE: "I, Your Name, am currently speaking and give consent to Tavus to create an AI clone of me by using the audio and video samples I provide. I understand that this AI clone can be used to create videos that look and sound like me.",
   CONSENT_REQUIREMENTS: [
     'Must say the exact consent phrase clearly',
     'Consent phrase should be spoken at the beginning or end of video',

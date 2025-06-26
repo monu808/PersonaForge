@@ -18,6 +18,8 @@ import { ReplicaCreateForm } from '@/components/persona/ReplicaCreateForm';
 import { ReplicaStatusChecker } from '@/components/persona/ReplicaStatusChecker';
 import { TavusVideoGenerator } from '@/components/video/TavusVideoGenerator';
 import { TavusConversationManager } from '@/components/video/TavusConversationManager';
+import { TavusSyncComponent } from '@/components/persona/TavusSyncComponent';
+import { TavusAutomationMonitor } from '@/components/automation/TavusAutomationMonitor';
 import { getPersonas } from '@/lib/api/personas';
 import { toast } from '@/components/ui/use-toast';
 
@@ -66,6 +68,7 @@ export function TavusFeatures() {
       title: "Replica Creation Started",
       description: "Your replica is being processed. You'll be notified when it's ready.",
     });
+    loadPersonas(); // Refresh the list to show updated personas
   };
 
   const handleVideoGenerated = (videoId: string) => {
@@ -187,7 +190,7 @@ export function TavusFeatures() {
         {/* Create Persona Tab */}
         <TabsContent value="personas" className="space-y-6">
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            <div className="lg:col-span-2">
+            <div className="lg:col-span-2 space-y-6">
               <PersonaCreateForm onSuccess={handlePersonaCreated} />
             </div>
             
@@ -243,6 +246,12 @@ export function TavusFeatures() {
                   </CardContent>
                 </Card>
               )}
+
+              {/* TAVUS Sync for existing TAVUS personas */}
+              <TavusSyncComponent 
+                personas={personas} 
+                onSyncComplete={loadPersonas}
+              />
             </div>
           </div>
         </TabsContent>
@@ -399,32 +408,63 @@ export function TavusFeatures() {
                     <CardTitle className="text-sm">Select Persona</CardTitle>
                   </CardHeader>
                   <CardContent>
-                    <div className="space-y-2">
+                    <div className="space-y-3 max-h-64 overflow-y-auto">
                       {personas.map((persona) => {
                         const hasReplica = persona.attributes?.default_replica_id;
+                        const isSelected = selectedPersonaId === persona.id;
                         return (
-                          <div key={persona.id} className="space-y-1">                            <Button
-                              variant={selectedPersonaId === persona.id ? "default" : "outline"}
-                              size="sm"
-                              className="w-full justify-start"
-                              onClick={() => setSelectedPersonaId(persona.id)}
-                              disabled={!hasReplica}
-                            >
-                              {persona.name}
-                              {!hasReplica && (
-                                <span className="ml-2 text-xs text-orange-500">(No Replica)</span>
+                          <div
+                            key={persona.id}
+                            onClick={() => hasReplica && setSelectedPersonaId(persona.id)}
+                            className={`
+                              p-4 border rounded-lg transition-all duration-200 
+                              ${hasReplica ? 'cursor-pointer hover:shadow-md' : 'cursor-not-allowed opacity-60'}
+                              ${isSelected && hasReplica
+                                ? 'bg-purple-50 border-purple-300 ring-2 ring-purple-200' 
+                                : 'bg-white border-gray-200 hover:border-gray-300'
+                              }
+                              ${!hasReplica ? 'bg-gray-50 border-gray-200' : ''}
+                            `}
+                          >
+                            <div className="flex items-center justify-between">
+                              <div className="flex-1">
+                                <div className="flex items-center gap-2">
+                                  <h3 className="font-medium text-gray-900">
+                                    {persona.name}
+                                  </h3>
+                                  {!hasReplica && (
+                                    <span className="text-xs bg-orange-100 text-orange-600 px-2 py-1 rounded">
+                                      No Replica
+                                    </span>
+                                  )}
+                                  {hasReplica && persona.attributes?.default_replica_id === 'r8b3dd03978e' && (
+                                    <span className="text-xs bg-red-100 text-red-600 px-2 py-1 rounded">
+                                      Error State
+                                    </span>
+                                  )}
+                                </div>
+                                {persona.description && (
+                                  <p className="text-sm text-gray-600 mt-1 line-clamp-2">
+                                    {persona.description}
+                                  </p>
+                                )}
+                                {!hasReplica && (
+                                  <p className="text-xs text-gray-500 mt-1">
+                                    Create a replica first in the Replicas tab
+                                  </p>
+                                )}
+                                {hasReplica && persona.attributes?.default_replica_id === 'r8b3dd03978e' && (
+                                  <p className="text-xs text-red-500 mt-1 font-medium">
+                                    ⚠️ This replica is in error state - create a new one
+                                  </p>
+                                )}
+                              </div>
+                              {isSelected && hasReplica && (
+                                <div className="ml-3 flex-shrink-0">
+                                  <div className="w-2 h-2 bg-purple-500 rounded-full"></div>
+                                </div>
                               )}
-                            </Button>
-                            {!hasReplica && (
-                              <p className="text-xs text-gray-500 px-2">
-                                Create a replica first in the Replicas tab
-                              </p>
-                            )}
-                            {hasReplica && persona.attributes?.default_replica_id === 'r8b3dd03978e' && (
-                              <p className="text-xs text-red-500 px-2 font-medium">
-                                ⚠️ This replica is in error state - create a new one
-                              </p>
-                            )}
+                            </div>
                           </div>
                         );
                       })}
@@ -477,6 +517,9 @@ export function TavusFeatures() {
           />
         </TabsContent>
       </Tabs>
+      
+      {/* Automation Monitor - Bottom Right Corner */}
+      <TavusAutomationMonitor />
     </div>
   );
 }

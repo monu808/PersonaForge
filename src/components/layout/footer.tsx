@@ -1,4 +1,3 @@
-import React from "react";
 import { Link } from "react-router-dom";
 import { BrainCircuitIcon, GithubIcon, TwitterIcon, InstagramIcon } from "lucide-react";
 
@@ -14,7 +13,8 @@ export function Footer() {
                 <span className="ml-2 text-xl font-bold text-gray-900">PersonaForge</span>
               </Link>
               <p className="mt-4 text-base text-gray-600 max-w-md">
-                Create, customize, and monetize AI personas with PersonaForge - the all-in-one platform for AI persona development.
+                The comprehensive AI-powered platform for creating, managing, and deploying AI personas 
+                with video generation, voice synthesis, and real-time conversation capabilities.
               </p>
               <div className="mt-6 flex space-x-4">
                 <a
@@ -39,77 +39,77 @@ export function Footer() {
             </div>
 
             <div>
-              <h3 className="text-sm font-semibold text-gray-500 tracking-wider uppercase">Product</h3>
+              <h3 className="text-sm font-semibold text-gray-500 tracking-wider uppercase">Platform</h3>
               <ul className="mt-4 space-y-3">
                 <li>
-                  <Link to="/" className="text-base text-gray-600 hover:text-primary-600 transition">
-                    Features
+                  <Link to="/tavus-features" className="text-base text-gray-600 hover:text-primary-600 transition">
+                    Video Generation
                   </Link>
                 </li>
                 <li>
-                  <Link to="/" className="text-base text-gray-600 hover:text-primary-600 transition">
+                  <Link to="/elevenlabs-features" className="text-base text-gray-600 hover:text-primary-600 transition">
+                    Voice Synthesis
+                  </Link>
+                </li>
+                <li>
+                  <Link to="/create" className="text-base text-gray-600 hover:text-primary-600 transition">
+                    Create Persona
+                  </Link>
+                </li>
+                <li>
+                  <Link to="/coruscant" className="text-base text-gray-600 hover:text-primary-600 transition">
+                    Dashboard
+                  </Link>
+                </li>
+              </ul>
+            </div>
+
+            <div>
+              <h3 className="text-sm font-semibold text-gray-500 tracking-wider uppercase">Features</h3>
+              <ul className="mt-4 space-y-3">
+                <li>
+                  <Link to="/coruscant" className="text-base text-gray-600 hover:text-primary-600 transition">
+                    Coruscant
+                  </Link>
+                </li>
+                <li>
+                  <Link to="/neurovia" className="text-base text-gray-600 hover:text-primary-600 transition">
+                    Neurovia
+                  </Link>
+                </li>
+                <li>
+                  <Link to="/pricing" className="text-base text-gray-600 hover:text-primary-600 transition">
                     Pricing
                   </Link>
                 </li>
                 <li>
-                  <Link to="/" className="text-base text-gray-600 hover:text-primary-600 transition">
-                    Templates
-                  </Link>
-                </li>
-                <li>
-                  <Link to="/" className="text-base text-gray-600 hover:text-primary-600 transition">
-                    Marketplace
+                  <Link to="/integration-test" className="text-base text-gray-600 hover:text-primary-600 transition">
+                    API Status
                   </Link>
                 </li>
               </ul>
             </div>
 
             <div>
-              <h3 className="text-sm font-semibold text-gray-500 tracking-wider uppercase">Resources</h3>
+              <h3 className="text-sm font-semibold text-gray-500 tracking-wider uppercase">Support</h3>
               <ul className="mt-4 space-y-3">
                 <li>
-                  <Link to="/" className="text-base text-gray-600 hover:text-primary-600 transition">
-                    Documentation
-                  </Link>
-                </li>
-                <li>
-                  <Link to="/" className="text-base text-gray-600 hover:text-primary-600 transition">
-                    Guides
-                  </Link>
-                </li>
-                <li>
-                  <Link to="/" className="text-base text-gray-600 hover:text-primary-600 transition">
-                    API Reference
-                  </Link>
-                </li>
-                <li>
-                  <Link to="/" className="text-base text-gray-600 hover:text-primary-600 transition">
-                    Blog
-                  </Link>
-                </li>
-              </ul>
-            </div>
-
-            <div>
-              <h3 className="text-sm font-semibold text-gray-500 tracking-wider uppercase">Company</h3>
-              <ul className="mt-4 space-y-3">
-                <li>
-                  <Link to="/" className="text-base text-gray-600 hover:text-primary-600 transition">
+                  <Link to="/about" className="text-base text-gray-600 hover:text-primary-600 transition">
                     About
                   </Link>
                 </li>
                 <li>
-                  <Link to="/" className="text-base text-gray-600 hover:text-primary-600 transition">
-                    Careers
+                  <Link to="/system-status" className="text-base text-gray-600 hover:text-primary-600 transition">
+                    System Status
                   </Link>
                 </li>
                 <li>
-                  <Link to="/" className="text-base text-gray-600 hover:text-primary-600 transition">
+                  <Link to="/contact" className="text-base text-gray-600 hover:text-primary-600 transition">
                     Contact
                   </Link>
                 </li>
                 <li>
-                  <Link to="/" className="text-base text-gray-600 hover:text-primary-600 transition">
+                  <Link to="/privacy" className="text-base text-gray-600 hover:text-primary-600 transition">
                     Privacy
                   </Link>
                 </li>

@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Loader2, Video, Phone, ExternalLink, Clock, Users } from 'lucide-react';
-import { createTavusConversation, listTavusConversations, deleteTavusConversation, endTavusConversation } from '@/lib/api/tavus';
+import { createTavusConversation, listTavusConversations, endTavusConversation } from '@/lib/api/tavus';
 import { createLiveEvent, updateEventStatus } from '@/lib/api/events';
 import { toast } from '@/components/ui/use-toast';
 
@@ -22,6 +22,7 @@ interface TavusConversationManagerProps {
 
 export function TavusConversationManager({ personas, onConversationCreated }: TavusConversationManagerProps) {  const [selectedPersona, setSelectedPersona] = useState<string>('');
   const [conversationName, setConversationName] = useState('');
+  const [conversationContext, setConversationContext] = useState('');
   const [maxDuration, setMaxDuration] = useState<number>(30);
   const [enableRecording, setEnableRecording] = useState<boolean>(false);
   const [isCreating, setIsCreating] = useState<boolean>(false);
@@ -56,7 +57,8 @@ export function TavusConversationManager({ personas, onConversationCreated }: Ta
         throw new Error('Selected persona not found');
       }
       
-      const personaId = selectedPersonaData?.attributes?.default_replica_id;
+      const replicaId = selectedPersonaData?.attributes?.default_replica_id;
+      const tavusPersonaId = (selectedPersonaData?.attributes as any)?.tavus_persona_id;
         // Debug logging to help identify the issue
       console.log('DEBUG: Conversation creation parameters:', {
         selectedPersona,
@@ -65,19 +67,31 @@ export function TavusConversationManager({ personas, onConversationCreated }: Ta
           name: selectedPersonaData.name,
           attributes: selectedPersonaData.attributes
         },
-        resolvedPersonaId: personaId
+        resolvedReplicaId: replicaId,
+        resolvedTavusPersonaId: tavusPersonaId
       });
 
-      if (!personaId) {
+      if (!replicaId) {
         throw new Error(`No Tavus replica ID found for persona "${selectedPersonaData.name}". Please create a replica for this persona first.`);
+      }
+
+      if (!tavusPersonaId) {
+        throw new Error(`No Tavus persona ID found for persona "${selectedPersonaData.name}". Please create a TAVUS persona for this persona first.`);
       }      // Validate that the replica ID looks like a Tavus replica ID (should start with 'r')
-      if (!personaId.startsWith('r')) {
-        throw new Error(`Invalid replica ID format: ${personaId}. Please ensure the persona has a valid Tavus replica.`);
+      if (!replicaId.startsWith('r')) {
+        throw new Error(`Invalid replica ID format: ${replicaId}. Please ensure the persona has a valid Tavus replica.`);
+      }
+
+      // Validate that the persona ID looks like a Tavus persona ID (should start with 'p')
+      if (!tavusPersonaId.startsWith('p')) {
+        throw new Error(`Invalid persona ID format: ${tavusPersonaId}. Please ensure the persona has a valid Tavus persona.`);
       }
 
       const conversationData = await createTavusConversation({
-        replica_id: personaId,
+        replica_id: replicaId,
+        persona_id: tavusPersonaId,
         conversation_name: conversationName || `${selectedPersonaData?.name} Conversation`,
+        conversation_context: conversationContext || undefined,
         properties: {
           participant_left_timeout: 60,
           participant_absent_timeout: 300,
@@ -88,21 +102,13 @@ export function TavusConversationManager({ personas, onConversationCreated }: Ta
       }
 
       if (conversationData.conversation_id && conversationData.conversation_url) {
-        // Add to active conversations list
-        const newConversation = {
-          id: conversationData.conversation_id,
-          name: conversationName || `${selectedPersonaData?.name} Conversation`,
-          url: conversationData.conversation_url,
-          replica_id: personaId
-        };
-        
         // Create a live event for this conversation
         let liveEventId = '';
         try {
           const { data: liveEvent, error: eventError } = await createLiveEvent({
             title: conversationName || `${selectedPersonaData?.name} Conversation`,
             description: `Live video conversation with ${selectedPersonaData?.name}`,
-            host_replica_id: personaId,
+            host_replica_id: replicaId,
             participants: [],
             status: 'live', // Mark as live immediately since conversation is starting
             start_time: new Date().toISOString(),
@@ -143,6 +149,7 @@ export function TavusConversationManager({ personas, onConversationCreated }: Ta
         
         // Reset form
         setConversationName('');
+        setConversationContext('');
         setSelectedPersona('');
         
         toast({
@@ -206,9 +213,6 @@ Try again in a few minutes.`;
         });
       }
 
-      // Find the conversation in active conversations to get live event ID
-      const conversation = activeConversations.find(conv => conv.id === conversationId);
-      
       // Update the live event status to ended if we have the live event ID
       if (currentConversation?.liveEventId && currentConversation.conversationId === conversationId) {
         const { error: eventError } = await updateEventStatus(
@@ -250,7 +254,9 @@ Try again in a few minutes.`;
   const loadActiveConversations = async () => {
     try {
       const result = await listTavusConversations();
-      if (result.conversations) {
+      console.log('listTavusConversations result:', result); // Debug log
+      
+      if (result.conversations && Array.isArray(result.conversations)) {
         // Filter only active/live conversations
         const activeConvs = result.conversations
           .filter(conv => conv.status === 'active' || conv.status === 'live')
@@ -263,9 +269,18 @@ Try again in a few minutes.`;
           }));
         
         setActiveConversations(activeConvs);
+      } else {
+        console.warn('Invalid conversations data structure:', {
+          result,
+          conversationsType: typeof result.conversations,
+          isArray: Array.isArray(result.conversations),
+          conversationsKeys: result.conversations ? Object.keys(result.conversations) : 'null'
+        });
+        setActiveConversations([]);
       }
     } catch (error) {
       console.error('Error loading active conversations:', error);
+      setActiveConversations([]);
       // Don't show error toast for this, as it's not critical
     }
   };
@@ -316,6 +331,20 @@ Try again in a few minutes.`;
                 onChange={(e) => setConversationName(e.target.value)}
                 placeholder="Enter conversation name..."
               />
+            </div>
+
+            <div>
+              <Label htmlFor="conversationContext">Conversation Context (optional)</Label>
+              <textarea
+                id="conversationContext"
+                value={conversationContext}
+                onChange={(e) => setConversationContext(e.target.value)}
+                placeholder="Enter context for your conversation"
+                className="w-full min-h-[100px] p-3 border border-gray-300 rounded-md resize-y focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              />
+              <p className="text-xs text-gray-500 mt-1">
+                Provide additional context or instructions for the conversation
+              </p>
             </div>            <div className="grid grid-cols-2 gap-4">
               <div>
                 <Label htmlFor="maxDuration">Max Duration (minutes)</Label>

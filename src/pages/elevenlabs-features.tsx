@@ -1,17 +1,54 @@
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Mic, Bot, Volume2, AudioLines, ExternalLink } from 'lucide-react';
+import { Mic, Bot, Volume2, AudioLines, ExternalLink, UserCircle, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { ElevenLabsAudioGenerator } from '@/components/audio/ElevenLabsAudioGenerator';
 import { VoiceCloneCreator } from '@/components/audio/VoiceCloneCreator';
 import { ConversationalAI } from '@/components/audio/ConversationalAI';
 import { useNavigate } from 'react-router-dom';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { toast } from '@/components/ui/use-toast';
+import { getPersonas } from '@/lib/api/personas';
+
+interface Persona {
+  id: string;
+  name: string;
+  description?: string;
+}
 
 export function ElevenLabsFeatures() {
   const navigate = useNavigate();
   const [generatedAudioCount, setGeneratedAudioCount] = useState(0);
+  const [personas, setPersonas] = useState<Persona[]>([]);
+  const [selectedPersona, setSelectedPersona] = useState<string>('');
+  const [loadingPersonas, setLoadingPersonas] = useState(true);
+
+  // Load personas on component mount
+  useEffect(() => {
+    const loadPersonas = async () => {
+      try {
+        setLoadingPersonas(true);
+        const response = await getPersonas();
+        
+        if (response.data && response.data.length > 0) {
+          setPersonas(response.data);
+          setSelectedPersona(response.data[0].id);
+        }
+      } catch (err) {
+        console.error("Error loading personas:", err);
+        toast({
+          title: 'Error Loading Personas',
+          description: 'Failed to load personas. Some features may not work correctly.',
+          variant: 'destructive'
+        });
+      } finally {
+        setLoadingPersonas(false);
+      }
+    };
+
+    loadPersonas();
+  }, []);
   const handleAudioGenerated = (_audioUrl: string) => {
     setGeneratedAudioCount(prev => prev + 1);
     toast({
@@ -120,63 +157,119 @@ export function ElevenLabsFeatures() {
             </TabsTrigger>
           </TabsList>
 
-          {/* Text-to-Speech Tab */}          <TabsContent value="tts" className="space-y-6">
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">              <ElevenLabsAudioGenerator 
-                personaId="default-persona"
-                onAudioGenerated={handleAudioGenerated}
-              />
-              
+          {/* Text-to-Speech Tab */}
+          <TabsContent value="tts" className="space-y-6">
+            {/* Persona Selector */}
+            {!loadingPersonas && personas.length > 0 && (
               <Card>
-                <CardHeader>                  <CardTitle className="flex items-center gap-2">
-                    <AudioLines className="h-5 w-5" />
-                    Features & Benefits
+                <CardHeader className="pb-4">
+                  <CardTitle className="flex items-center gap-2">
+                    <UserCircle className="h-5 w-5" />
+                    Select Persona for Audio Generation
                   </CardTitle>
+                  <CardDescription>
+                    Choose which persona to associate with the generated audio
+                  </CardDescription>
                 </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="space-y-3">
-                    <div className="flex items-start gap-3">
-                      <div className="w-2 h-2 bg-blue-500 rounded-full mt-2"></div>
-                      <div>
-                        <h4 className="font-medium">Premium Voice Quality</h4>
-                        <p className="text-sm text-gray-600">
-                          Industry-leading AI voices with natural intonation and emotion
-                        </p>
-                      </div>
-                    </div>
-                    
-                    <div className="flex items-start gap-3">
-                      <div className="w-2 h-2 bg-blue-500 rounded-full mt-2"></div>
-                      <div>
-                        <h4 className="font-medium">Multiple Languages</h4>
-                        <p className="text-sm text-gray-600">
-                          Support for 29+ languages with native pronunciation
-                        </p>
-                      </div>
-                    </div>
-                    
-                    <div className="flex items-start gap-3">
-                      <div className="w-2 h-2 bg-blue-500 rounded-full mt-2"></div>
-                      <div>
-                        <h4 className="font-medium">Voice Control</h4>
-                        <p className="text-sm text-gray-600">
-                          Adjust stability, clarity, and style for perfect results
-                        </p>
-                      </div>
-                    </div>
-
-                    <div className="flex items-start gap-3">
-                      <div className="w-2 h-2 bg-blue-500 rounded-full mt-2"></div>
-                      <div>
-                        <h4 className="font-medium">Instant Generation</h4>
-                        <p className="text-sm text-gray-600">
-                          Generate high-quality audio in seconds, not hours
-                        </p>
-                      </div>
-                    </div>
-                  </div>
+                <CardContent>
+                  <Select value={selectedPersona} onValueChange={setSelectedPersona}>
+                    <SelectTrigger className="w-full">
+                      <SelectValue placeholder="Select a persona...">
+                        {selectedPersona && personas.find(p => p.id === selectedPersona)?.name}
+                      </SelectValue>
+                    </SelectTrigger>
+                    <SelectContent>
+                      {personas.map((persona) => (
+                        <SelectItem key={persona.id} value={persona.id}>
+                          {persona.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </CardContent>
               </Card>
-            </div>
+            )}
+
+            {loadingPersonas ? (
+              <Card>
+                <CardContent className="flex items-center justify-center py-12">
+                  <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                  <span className="ml-2">Loading personas...</span>
+                </CardContent>
+              </Card>
+            ) : personas.length === 0 ? (
+              <Card>
+                <CardContent className="flex flex-col items-center justify-center py-12">
+                  <UserCircle className="h-12 w-12 text-muted-foreground mb-4" />
+                  <h3 className="text-lg font-semibold mb-2">No Personas Found</h3>
+                  <p className="text-center text-muted-foreground mb-6">
+                    You need to create a persona before you can generate audio.
+                  </p>
+                  <Button onClick={() => navigate('/create')}>
+                    Create Your First Persona
+                  </Button>
+                </CardContent>
+              </Card>
+            ) : (
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <ElevenLabsAudioGenerator 
+                  personaId={selectedPersona}
+                  onAudioGenerated={handleAudioGenerated}
+                />
+                
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                      <AudioLines className="h-5 w-5" />
+                      Features & Benefits
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <div className="space-y-3">
+                      <div className="flex items-start gap-3">
+                        <div className="w-2 h-2 bg-blue-500 rounded-full mt-2"></div>
+                        <div>
+                          <h4 className="font-medium">Premium Voice Quality</h4>
+                          <p className="text-sm text-gray-600">
+                            Industry-leading AI voices with natural intonation and emotion
+                          </p>
+                        </div>
+                      </div>
+                      
+                      <div className="flex items-start gap-3">
+                        <div className="w-2 h-2 bg-blue-500 rounded-full mt-2"></div>
+                        <div>
+                          <h4 className="font-medium">Multiple Languages</h4>
+                          <p className="text-sm text-gray-600">
+                            Support for 29+ languages with native pronunciation
+                          </p>
+                        </div>
+                      </div>
+                      
+                      <div className="flex items-start gap-3">
+                        <div className="w-2 h-2 bg-blue-500 rounded-full mt-2"></div>
+                        <div>
+                          <h4 className="font-medium">Voice Control</h4>
+                          <p className="text-sm text-gray-600">
+                            Adjust stability, clarity, and style for perfect results
+                          </p>
+                        </div>
+                      </div>
+
+                      <div className="flex items-start gap-3">
+                        <div className="w-2 h-2 bg-blue-500 rounded-full mt-2"></div>
+                        <div>
+                          <h4 className="font-medium">Instant Generation</h4>
+                          <p className="text-sm text-gray-600">
+                            Generate high-quality audio in seconds, not hours
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+            )}
           </TabsContent>
 
           {/* Voice Cloning Tab */}          <TabsContent value="clone" className="space-y-6">

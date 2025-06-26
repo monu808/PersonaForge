@@ -13,6 +13,7 @@ import { TAVUS_VIDEO_REQUIREMENTS } from '@/lib/tavus-guide';
 import { STORAGE_BUCKETS } from '@/lib/constants';
 import { TavusConsentRecorder } from '@/components/video/TavusConsentRecorder';
 import VideoCompressionGuide from '@/components/video/VideoCompressionGuide';
+import { startTavusAutomation } from '@/lib/automation/tavus-automation';
 
 interface ReplicaCreateFormProps {
   onSuccess?: (replicaData: any) => void;
@@ -266,31 +267,65 @@ export function ReplicaCreateForm({ onSuccess, onError }: ReplicaCreateFormProps
 
       const replicaData = replicaResponse;
       
-      // Update the selected persona with the replica ID
-      const { error: updateError } = await supabase
-        .from('personas')
-        .update({
-          attributes: {
-            ...personas.find(p => p.id === selectedPersona)?.attributes,
-            default_replica_id: replicaData.replica_id
-          },
-          updated_at: new Date().toISOString()
-        })
-        .eq('id', selectedPersona);
+      // Get the selected persona data for automation
+      const selectedPersonaData = personas.find(p => p.id === selectedPersona);
+      if (!selectedPersonaData) {
+        throw new Error('Selected persona not found');
+      }
 
-      if (updateError) {
-        console.error('Failed to link replica to persona:', updateError);
-        // Don't throw here as the replica was created successfully
-        toast({
-          title: "Replica Created",
-          description: `Replica created but failed to link to persona. Please manually update the persona.`,
-          variant: "destructive"
+      // Start background automation for TAVUS integration
+      console.log(`🚀 Starting automated TAVUS integration for persona: ${selectedPersona}`);
+      
+      if (!replicaData.replica_id) {
+        throw new Error('Replica ID is missing from created replica');
+      }
+      
+      try {
+        await startTavusAutomation({
+          personaId: selectedPersona,
+          replicaId: replicaData.replica_id,
+          replicaName: replicaName
         });
-      } else {
+
         toast({
-          title: "Replica Created and Linked",
-          description: `Your replica "${replicaName}" is being processed and has been linked to the selected persona.`,
+          title: "Replica Created - Automation Started!",
+          description: "Replica creation started. TAVUS integration will happen automatically in the background. Check console for progress updates.",
         });
+
+        console.log(`✅ TAVUS automation started successfully for persona: ${selectedPersona}`);
+        console.log(`📊 Monitor progress in browser console with [AUTOMATION] tags`);
+
+      } catch (automationError) {
+        console.error('Failed to start TAVUS automation:', automationError);
+        
+        // Fallback: at least link the replica to the persona manually
+        const { error: updateError } = await supabase
+          .from('personas')
+          .update({
+            attributes: {
+              ...selectedPersonaData.attributes,
+              default_replica_id: replicaData.replica_id,
+              automation_failed: true,
+              automation_error: automationError instanceof Error ? automationError.message : String(automationError)
+            },
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', selectedPersona);
+
+        if (updateError) {
+          console.error('Failed to link replica to persona:', updateError);
+          toast({
+            title: "Replica Created",
+            description: `Replica created but automation failed to start. Please check console for details.`,
+            variant: "destructive"
+          });
+        } else {
+          toast({
+            title: "Replica Created (Automation Failed)",
+            description: `Replica created and linked to persona, but background automation failed to start. Check console for details.`,
+            variant: "destructive"
+          });
+        }
       }
 
       // Reset form
@@ -328,7 +363,7 @@ export function ReplicaCreateForm({ onSuccess, onError }: ReplicaCreateFormProps
     const steps = [
       { key: 'consent' as WorkflowStep, label: 'Consent Video', description: 'Authorize Tavus platform' },
       { key: 'training' as WorkflowStep, label: 'Training Video', description: 'Teach your replica' },
-      { key: 'creation' as WorkflowStep, label: 'Create Replica', description: 'Generate your replica' }
+      { key: 'creation' as WorkflowStep, label: 'Create Replica', description: 'Start automated integration' }
     ];
 
     return (
@@ -375,46 +410,63 @@ export function ReplicaCreateForm({ onSuccess, onError }: ReplicaCreateFormProps
           <p className="text-sm text-gray-600">
             Create a digital replica using a 3-step process: consent authorization, training video, and replica generation.
           </p>
+          
+          {/* TAVUS Integration Notice */}
+          <div className="mt-4 bg-blue-50 border border-blue-200 rounded-lg p-4">
+            <h4 className="font-medium text-blue-800 mb-2 flex items-center gap-2">
+              <Info className="h-4 w-4" />
+              Automated TAVUS Integration
+            </h4>
+            <div className="text-sm text-blue-700 space-y-1">
+              <p><strong>What happens when you create a replica:</strong></p>
+              <ol className="list-decimal list-inside space-y-1 ml-2">
+                <li>TAVUS replica is created using your training video</li>
+                <li>Background automation monitors replica training status</li>
+                <li>When training completes, TAVUS persona is automatically created</li>
+                <li>Your local persona is updated with both IDs for full integration</li>
+              </ol>
+              <p className="mt-2 font-medium">Result: Complete hands-off TAVUS integration! Monitor progress in browser console.</p>
+            </div>
+          </div>
         </CardHeader>
         <CardContent>
           {renderStepIndicator()}
           
           {/* Step 1: Consent Video */}
-          {currentStep === 'consent' && (              <div className="space-y-6">
-                <div className="text-center">
-                  <h3 className="text-lg font-semibold mb-2">Step 1: Consent Video</h3>
-                  <p className="text-sm text-gray-600 mb-4">
-                    Record or upload a consent video to authorize Tavus platform to create your replica.
-                    This helps ensure you have given explicit permission for AI replica creation.
-                  </p>
-                </div>
+          {currentStep === 'consent' && (
+            <div className="space-y-6">
+              <div className="text-center">
+                <h3 className="text-lg font-semibold mb-2">Step 1: Consent Video</h3>
+                <p className="text-sm text-gray-600 mb-4">
+                  Record or upload a consent video to authorize the creation of your AI replica.
+                </p>
+              </div>
 
-                {/* Consent Phrase Requirements */}
-                <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-6">
-                  <div className="flex items-start gap-3">
-                    <Info className="h-5 w-5 text-yellow-600 mt-0.5 flex-shrink-0" />
-                    <div>
-                      <h4 className="font-semibold text-yellow-800 mb-2">Required Consent Phrase</h4>
-                      <div className="bg-white border border-yellow-300 rounded-md p-3 mb-3">
-                        <p className="text-sm font-mono text-gray-800 text-center">
-                          "{TAVUS_VIDEO_REQUIREMENTS.REQUIRED_CONSENT_PHRASE}"
-                        </p>
-                      </div>
-                      <ul className="text-xs text-yellow-700 space-y-1">
-                        <li>• You must say this exact phrase clearly in your video</li>
-                        <li>• Speak it at the beginning or end of your video</li>
-                        <li>• Ensure clear pronunciation and audible speech</li>
-                        <li>• The person speaking must be the same person in the video</li>
-                      </ul>
+              {/* Required Consent Phrase */}
+              <div className="bg-gradient-to-br from-blue-50 to-indigo-50 border border-blue-200 rounded-lg p-4">
+                <div className="flex items-start gap-3">
+                  <Info className="h-5 w-5 text-blue-600 mt-0.5 flex-shrink-0" />
+                  <div className="flex-1">
+                    <h4 className="font-semibold text-blue-900 mb-3">Required Consent Statement</h4>
+                    <div className="bg-white border border-blue-300 rounded-md p-3 mb-3">
+                      <p className="text-sm text-gray-800 leading-relaxed">
+                        <strong>"{TAVUS_VIDEO_REQUIREMENTS.REQUIRED_CONSENT_PHRASE}"</strong>
+                      </p>
+                    </div>
+                    <div className="text-xs text-blue-700 space-y-1">
+                      <p>📝 Replace "Your Name" with your actual name</p>
+                      <p>🎤 Speak this phrase clearly in both your consent and training videos</p>
+                      <p>📹 Ensure good lighting and audio quality</p>
                     </div>
                   </div>
                 </div>
+              </div>
 
-                <div className="space-y-4">
+              <div className="space-y-4">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2 text-sm font-medium text-gray-700">
                     <Video className="h-4 w-4" />
-                    Consent Video Method
+                    Choose Input Method
                   </div>
                   <Button
                     type="button"
@@ -422,7 +474,7 @@ export function ReplicaCreateForm({ onSuccess, onError }: ReplicaCreateFormProps
                     size="sm"
                     onClick={() => setUseConsentRecorder(!useConsentRecorder)}
                   >
-                    {useConsentRecorder ? 'Use Manual Input' : 'Use Tavus Recorder'}
+                    {useConsentRecorder ? 'Manual Upload' : 'Record Now'}
                   </Button>
                 </div>
 
@@ -435,7 +487,7 @@ export function ReplicaCreateForm({ onSuccess, onError }: ReplicaCreateFormProps
                 ) : (
                   <div className="space-y-4">
                     <div>
-                      <Label htmlFor="consentVideoUrl">Consent Video URL</Label>
+                      <Label htmlFor="consentVideoUrl">Video URL</Label>
                       <Input 
                         id="consentVideoUrl" 
                         type="url"
@@ -444,9 +496,6 @@ export function ReplicaCreateForm({ onSuccess, onError }: ReplicaCreateFormProps
                         placeholder="https://example.com/your-consent-video.mp4"
                         disabled={!!consentVideoFile}
                       />
-                      <p className="text-xs text-gray-500 mt-1">
-                        Provide a direct URL to your consent video
-                      </p>
                     </div>
 
                     <div className="flex items-center gap-2">
@@ -456,7 +505,7 @@ export function ReplicaCreateForm({ onSuccess, onError }: ReplicaCreateFormProps
                     </div>
 
                     <div>
-                      <Label htmlFor="consentVideoFile">Upload Consent Video</Label>
+                      <Label htmlFor="consentVideoFile">Upload Video File</Label>
                       <Input 
                         id="consentVideoFile" 
                         type="file"
@@ -479,23 +528,17 @@ export function ReplicaCreateForm({ onSuccess, onError }: ReplicaCreateFormProps
                     </div>
 
                     <div className="border-t pt-4">
-                      <div className="flex items-start gap-3">
+                      <div className="flex items-center gap-3">
                         <input
                           type="checkbox"
                           id="consent"
                           checked={consentAcknowledged}
                           onChange={(e) => setConsentAcknowledged(e.target.checked)}
-                          className="mt-1"
+                          className="rounded border-gray-300"
                         />
-                        <div>
-                          <Label htmlFor="consent" className="text-sm">
-                            Consent and Agreement
-                          </Label>
-                          <p className="text-xs text-gray-600 mt-1">
-                            I consent to the creation of an AI replica and authorize Tavus platform 
-                            to process my video content for replica generation.
-                          </p>
-                        </div>
+                        <Label htmlFor="consent" className="text-sm cursor-pointer">
+                          I confirm that I have provided the required consent statement and authorize AI replica creation
+                        </Label>
                       </div>
                     </div>
 
@@ -527,7 +570,7 @@ export function ReplicaCreateForm({ onSuccess, onError }: ReplicaCreateFormProps
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2 text-sm font-medium text-gray-700">
                     <Video className="h-4 w-4" />
-                    Training Video Method
+                    Choose Input Method
                   </div>
                   <Button
                     type="button"
@@ -535,7 +578,7 @@ export function ReplicaCreateForm({ onSuccess, onError }: ReplicaCreateFormProps
                     size="sm"
                     onClick={() => setUseTrainingRecorder(!useTrainingRecorder)}
                   >
-                    {useTrainingRecorder ? 'Use Manual Input' : 'Use Tavus Recorder'}
+                    {useTrainingRecorder ? 'Manual Upload' : 'Record Now'}
                   </Button>
                 </div>
 
@@ -548,7 +591,7 @@ export function ReplicaCreateForm({ onSuccess, onError }: ReplicaCreateFormProps
                 ) : (
                   <div className="space-y-4">
                     <div>
-                      <Label htmlFor="trainVideoUrl">Training Video URL</Label>
+                      <Label htmlFor="trainVideoUrl">Video URL</Label>
                       <Input 
                         id="trainVideoUrl" 
                         type="url"
@@ -557,9 +600,6 @@ export function ReplicaCreateForm({ onSuccess, onError }: ReplicaCreateFormProps
                         placeholder="https://example.com/your-training-video.mp4"
                         disabled={!!trainVideoFile}
                       />
-                      <p className="text-xs text-gray-500 mt-1">
-                        Provide a direct URL to your training video (MP4, MOV, or AVI format)
-                      </p>
                     </div>
 
                     <div className="flex items-center gap-2">
@@ -569,7 +609,7 @@ export function ReplicaCreateForm({ onSuccess, onError }: ReplicaCreateFormProps
                     </div>
 
                     <div>
-                      <Label htmlFor="trainVideoFile">Upload Training Video</Label>
+                      <Label htmlFor="trainVideoFile">Upload Video File</Label>
                       <Input 
                         id="trainVideoFile" 
                         type="file"
@@ -587,7 +627,7 @@ export function ReplicaCreateForm({ onSuccess, onError }: ReplicaCreateFormProps
                           </p>
                         </div>
                       )}                      <p className="text-xs text-gray-500 mt-1">
-                        <strong>Max file size: {TAVUS_VIDEO_REQUIREMENTS.MAX_FILE_SIZE_MB}MB</strong> • Recommended: {TAVUS_VIDEO_REQUIREMENTS.RECOMMENDED_FILE_SIZE_MB}MB or less for reliable uploads
+                        <strong>Max file size: {TAVUS_VIDEO_REQUIREMENTS.MAX_FILE_SIZE_MB}MB</strong> • Recommended: {TAVUS_VIDEO_REQUIREMENTS.RECOMMENDED_FILE_SIZE_MB}MB or less
                       </p>
                       <div className="flex items-center gap-2 mt-2">
                         <Button
@@ -607,59 +647,35 @@ export function ReplicaCreateForm({ onSuccess, onError }: ReplicaCreateFormProps
                 <div className="bg-blue-50 border border-blue-200 p-4 rounded-lg">
                   <h4 className="text-sm font-medium text-blue-900 mb-3 flex items-center gap-2">
                     <Info className="h-4 w-4" />
-                    Training Video Requirements
+                    Training Video Guidelines
                   </h4>
                   
-                  <div className="space-y-3">
-                    {/* Consent Phrase Reminder */}
-                    <div className="bg-yellow-100 border border-yellow-300 rounded-md p-3">
-                      <h5 className="text-xs font-semibold text-yellow-800 mb-1">🔊 IMPORTANT - Required Consent Phrase:</h5>
-                      <p className="text-xs font-mono text-gray-800 bg-white border rounded px-2 py-1 mb-1">
-                        "{TAVUS_VIDEO_REQUIREMENTS.REQUIRED_CONSENT_PHRASE}"
-                      </p>
-                      <p className="text-xs text-yellow-700">
-                        This exact phrase must be spoken clearly in your training video!
-                      </p>
+                  {/* Reminder about consent phrase */}
+                  <div className="bg-amber-100 border border-amber-300 rounded-md p-3 mb-3">
+                    <div className="flex items-center gap-2 text-amber-800">
+                      <Info className="h-4 w-4" />
+                      <span className="text-sm font-medium">Remember to include the consent statement in this video too!</span>
                     </div>
-                    
+                  </div>
+                  
+                  <div className="grid md:grid-cols-2 gap-4 text-xs text-blue-800">
                     <div>
-                      <h5 className="text-xs font-medium text-blue-800 mb-1">Duration & Quality:</h5>
-                      <ul className="text-xs text-blue-700 space-y-0.5 ml-2">
-                        <li>• Duration: {TAVUS_VIDEO_REQUIREMENTS.MIN_DURATION_SECONDS}-{TAVUS_VIDEO_REQUIREMENTS.MAX_DURATION_SECONDS} seconds (recommended: {TAVUS_VIDEO_REQUIREMENTS.RECOMMENDED_DURATION_SECONDS}s)</li>
-                        <li>• Resolution: {TAVUS_VIDEO_REQUIREMENTS.MIN_RESOLUTION} minimum, {TAVUS_VIDEO_REQUIREMENTS.RECOMMENDED_RESOLUTION} recommended</li>
-                        <li>• Format: {TAVUS_VIDEO_REQUIREMENTS.SUPPORTED_FORMATS.join(', ').toUpperCase()}</li>
+                      <h5 className="font-semibold mb-1">Technical Requirements:</h5>
+                      <ul className="space-y-0.5">
+                        <li>• Duration: {TAVUS_VIDEO_REQUIREMENTS.RECOMMENDED_DURATION_SECONDS} seconds (ideal)</li>
+                        <li>• Resolution: {TAVUS_VIDEO_REQUIREMENTS.RECOMMENDED_RESOLUTION} recommended</li>
                         <li>• File size: Under {TAVUS_VIDEO_REQUIREMENTS.MAX_FILE_SIZE_MB}MB</li>
+                        <li>• Format: {TAVUS_VIDEO_REQUIREMENTS.SUPPORTED_FORMATS.join(', ').toUpperCase()}</li>
                       </ul>
                     </div>
                     
                     <div>
-                      <h5 className="text-xs font-medium text-blue-800 mb-1">Content Requirements:</h5>
-                      <ul className="text-xs text-blue-700 space-y-0.5 ml-2">
-                        {TAVUS_VIDEO_REQUIREMENTS.REQUIRED_ELEMENTS.map((req, index) => (
-                          <li key={index}>• {req}</li>
-                        ))}
-                      </ul>
-                    </div>
-                      <div>
-                      <h5 className="text-xs font-medium text-red-800 mb-1">Avoid:</h5>
-                      <ul className="text-xs text-red-700 space-y-0.5 ml-2">
-                        {TAVUS_VIDEO_REQUIREMENTS.AVOID.map((avoid, index) => (
-                          <li key={index}>• {avoid}</li>
-                        ))}
-                      </ul>
-                    </div>
-                    
-                    {/* Video Compression Tips */}
-                    <div className="bg-orange-50 border border-orange-200 rounded-md p-3">
-                      <h5 className="text-xs font-semibold text-orange-800 mb-1">💡 Video Too Large?</h5>
-                      <p className="text-xs text-orange-700 mb-1">
-                        If your video exceeds {TAVUS_VIDEO_REQUIREMENTS.MAX_FILE_SIZE_MB}MB, try these compression options:
-                      </p>
-                      <ul className="text-xs text-orange-700 space-y-0.5 ml-2">
-                        <li>• Use online tools like CloudConvert, FreeConvert, or Clipchamp</li>
-                        <li>• Reduce resolution to 720p if currently higher</li>
-                        <li>• Adjust bitrate/quality settings to reduce file size</li>
-                        <li>• Trim video to {TAVUS_VIDEO_REQUIREMENTS.RECOMMENDED_DURATION_SECONDS}s if longer</li>
+                      <h5 className="font-semibold mb-1">Best Practices:</h5>
+                      <ul className="space-y-0.5">
+                        <li>• Clear face visibility (front-facing)</li>
+                        <li>• Good lighting and stable camera</li>
+                        <li>• Include the consent statement</li>
+                        <li>• Single person in frame</li>
                       </ul>
                     </div>
                   </div>

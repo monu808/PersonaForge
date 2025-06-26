@@ -206,6 +206,7 @@ export default function Coruscant() {
               replicas={userReplicas} 
               loading={loading} 
               onReload={loadUserReplicas}              onPersonaDeleted={loadUserReplicas}
+              onTabChange={setActiveTab}
             />
           </TabsContent>
 

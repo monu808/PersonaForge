@@ -119,6 +119,45 @@ div[class*="modal"][style*="z-index"] {
   z-index: 10000 !important;
 }
 
+/* Coruscant permanent shimmer effect */
+@keyframes shimmer {
+  0% {
+    background-position: -200% center;
+  }
+  100% {
+    background-position: 200% center;
+  }
+}
+
+@keyframes text-glow {
+  0%, 100% {
+    text-shadow: 0 0 10px rgba(59, 130, 246, 0.3);
+  }
+  50% {
+    text-shadow: 0 0 20px rgba(59, 130, 246, 0.8), 0 0 30px rgba(99, 102, 241, 0.5);
+  }
+}
+
+.coruscant-animated {
+  background: linear-gradient(
+    90deg,
+    #3b82f6,
+    #6366f1,
+    #8b5cf6,
+    #a855f7,
+    #8b5cf6,
+    #6366f1,
+    #3b82f6
+  );
+  background-size: 300% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  animation: shimmer 4s linear infinite, text-glow 3s ease-in-out infinite;
+  font-weight: 600;
+  position: relative;
+}
+
 /* Ensure wallet popups have higher z-index than our service modal */
 div[id*="pera-wallet"],
 div[class*="pera-wallet"],
