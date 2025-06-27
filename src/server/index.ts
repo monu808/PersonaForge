@@ -6,6 +6,7 @@ import stripeRoutes from './routes/stripe';
 import elevenLabsRoutes from './routes/elevenlabs';
 import tavusRoutes from './routes/tavus';
 import podcastsRoutes from './routes/podcasts';
+import supportRoutes from './routes/support';
 import { requireAuth } from './middleware/auth';
 
 const app = express();
@@ -14,8 +15,8 @@ const port = process.env.PORT || 3001;
 // CORS configuration
 app.use(cors({
   origin: process.env.NODE_ENV === 'production' 
-    ? ['https://your-domain.com'] 
-    : ['http://localhost:5173', 'http://localhost:3000'],
+    ? ['https://personaforge.social'] 
+    : ['http://localhost:5173', 'http://localhost:3000', 'http://localhost:8888'],
   credentials: true,
 }));
 
@@ -48,6 +49,9 @@ app.use('/api/stripe', stripeRoutes);
 app.use('/api/elevenlabs', requireAuth, elevenLabsRoutes);
 app.use('/api/tavus', requireAuth, tavusRoutes);
 app.use('/api', podcastsRoutes);
+
+// Public routes (no auth required)
+app.use('/api/support', supportRoutes);
 
 // Error handling middleware
 app.use((err: Error, req: express.Request, res: express.Response, next: express.NextFunction) => {

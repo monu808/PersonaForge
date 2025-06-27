@@ -38,6 +38,9 @@ import { syncService } from './lib/api/sync-service';
 import { useEffect } from 'react';
 import './index.css';
 import AdminTavusSyncPage from './pages/admin-tavus-sync';
+import SupportPage from './pages/support';
+import DocsPage from './pages/docs';
+import TutorialsPage from './pages/tutorials';
 
 function App() {
   // Initialize sync service when app starts
@@ -163,6 +166,9 @@ function App() {
                   <ProfilePage />
                 </ProtectedRoute>
               } />
+              <Route path="support" element={<SupportPage />} />
+              <Route path="docs" element={<DocsPage />} />
+              <Route path="tutorials" element={<TutorialsPage />} />
               <Route path="database-diagnostic" element={                <ProtectedRoute>
                   <DatabaseDiagnosticPage />
                 </ProtectedRoute>
