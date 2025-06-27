@@ -179,6 +179,10 @@ export async function generateSpeech(data: ElevenLabsVoiceRequest, retries = 2):
  */
 export async function getAvailableVoices(): Promise<ElevenLabsVoice[]> {
   try {
+    // Get current user session
+    const { data: sessionData } = await supabase.auth.getSession();
+    const user = sessionData?.session?.user;
+    
     const apiKey = import.meta.env.VITE_ELEVENLABS_API_KEY;
     
     if (!apiKey) {
@@ -186,6 +190,7 @@ export async function getAvailableVoices(): Promise<ElevenLabsVoice[]> {
       return getDefaultVoices();
     }
 
+    // Fetch all voices from ElevenLabs API
     const response = await fetch('https://api.elevenlabs.io/v1/voices', {
       method: 'GET',
       headers: {
@@ -201,17 +206,47 @@ export async function getAvailableVoices(): Promise<ElevenLabsVoice[]> {
 
     const data = await response.json();
     
-    if (data.voices && Array.isArray(data.voices)) {
-      return data.voices.map((voice: any) => ({
-        id: voice.voice_id,
-        name: voice.name,
-        category: voice.category || 'general',
-        description: voice.description || '',
-        previewUrl: voice.preview_url || null
-      }));
+    if (!data.voices || !Array.isArray(data.voices)) {
+      return getDefaultVoices();
     }
 
-    return getDefaultVoices();
+    // Get user's voice IDs from database if user is authenticated
+    let userVoiceIds: string[] = [];
+    if (user) {
+      try {
+        const { data: userVoices, error } = await supabase
+          .from('user_voices')
+          .select('voice_id')
+          .eq('user_id', user.id);
+
+        if (!error && userVoices) {
+          userVoiceIds = userVoices.map(v => v.voice_id);
+        }
+      } catch (error) {
+        console.warn('Error fetching user voices:', error);
+      }
+    }
+
+    // Filter voices to only include:
+    // 1. Premade/public voices (category is 'premade', 'cloned', or 'generated' and owned by ElevenLabs)
+    // 2. User's own cloned voices
+    const filteredVoices = data.voices.filter((voice: any) => {
+      const isPublicVoice = voice.category === 'premade' || 
+                           voice.sharing?.status === 'public' ||
+                           DEFAULT_PUBLIC_VOICES.some(defaultVoice => defaultVoice.id === voice.voice_id);
+      
+      const isUserVoice = user && userVoiceIds.includes(voice.voice_id);
+      
+      return isPublicVoice || isUserVoice;
+    });
+
+    return filteredVoices.map((voice: any) => ({
+      id: voice.voice_id,
+      name: voice.name,
+      category: voice.category || 'general',
+      description: voice.description || '',
+      previewUrl: voice.preview_url || null
+    }));
     
   } catch (error) {
     console.error('Error fetching ElevenLabs voices:', error);

@@ -10,6 +10,7 @@ import {
   Plus,
   ExternalLink,
   ArrowRight,
+  Eye,
   Loader2
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
@@ -28,6 +29,7 @@ export function TavusFeatures() {
   const [personas, setPersonas] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedPersonaId, setSelectedPersonaId] = useState<string>('');
+  const [showAutomationMonitor, setShowAutomationMonitor] = useState(false);
 
   useEffect(() => {
     loadPersonas();
@@ -116,6 +118,15 @@ export function TavusFeatures() {
             >
               <ExternalLink className="h-4 w-4 mr-2" />
               Dashboard
+            </Button>
+            <Button 
+              variant="outline" 
+              size="sm"
+              onClick={() => setShowAutomationMonitor(!showAutomationMonitor)}
+              className="px-3 py-2 h-10 flex items-center justify-center"
+              title="Automation Monitor"
+            >
+              <Eye className="h-4 w-4" />
             </Button>
           </div>
         </div>
@@ -518,8 +529,11 @@ export function TavusFeatures() {
         </TabsContent>
       </Tabs>
       
-      {/* Automation Monitor - Bottom Right Corner */}
-      <TavusAutomationMonitor />
+      {/* Automation Monitor - Controlled visibility */}
+      <TavusAutomationMonitor 
+        isVisible={showAutomationMonitor}
+        onVisibilityChange={setShowAutomationMonitor}
+      />
     </div>
   );
 }

@@ -6,7 +6,7 @@
 import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { RefreshCw, Eye, EyeOff, CheckCircle, Clock, AlertTriangle, X } from 'lucide-react';
+import { RefreshCw, EyeOff, CheckCircle, Clock, AlertTriangle, X } from 'lucide-react';
 import { tavusAutomation } from '@/lib/automation/tavus-automation';
 
 interface AutomationStatus {
@@ -19,10 +19,29 @@ interface AutomationStatus {
   attempts: number;
 }
 
-export function TavusAutomationMonitor() {
+interface TavusAutomationMonitorProps {
+  isVisible?: boolean;
+  onVisibilityChange?: (visible: boolean) => void;
+}
+
+export function TavusAutomationMonitor({ 
+  isVisible: externalVisible, 
+  onVisibilityChange 
+}: TavusAutomationMonitorProps = {}) {
   const [automations, setAutomations] = useState<AutomationStatus[]>([]);
-  const [isVisible, setIsVisible] = useState(false);
+  const [internalVisible, setInternalVisible] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
+
+  // Use external visibility if provided, otherwise use internal state
+  const isVisible = externalVisible !== undefined ? externalVisible : internalVisible;
+  
+  const setIsVisible = (visible: boolean) => {
+    if (onVisibilityChange) {
+      onVisibilityChange(visible);
+    } else {
+      setInternalVisible(visible);
+    }
+  };
 
   const refreshAutomations = () => {
     setIsRefreshing(true);
@@ -87,22 +106,11 @@ export function TavusAutomationMonitor() {
   };
 
   if (!isVisible) {
-    return (
-      <div className="fixed bottom-4 left-4 z-50">
-        <Button
-          onClick={() => setIsVisible(true)}
-          variant="outline"
-          size="sm"
-          className="shadow-lg p-2"
-        >
-          <Eye className="h-4 w-4" />
-        </Button>
-      </div>
-    );
+    return null; // Don't render anything when not visible
   }
 
   return (
-    <div className="fixed bottom-4 left-4 z-50 w-80">
+    <div className="fixed top-28 right-4 z-50 w-80">
       <Card className="shadow-lg">
         <CardHeader className="pb-2 pt-3">
           <div className="flex items-center justify-between">

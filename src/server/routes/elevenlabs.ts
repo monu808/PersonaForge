@@ -5,6 +5,14 @@ import { validateRequest } from '../middleware/validate';
 import { requireAuth } from '../middleware/auth';
 import { supabase } from '../config/supabase';
 
+// Extend Request type to include user
+interface AuthenticatedRequest extends Request {
+  user?: {
+    id: string;
+    email?: string;
+  };
+}
+
 const router = Router();
 
 // Apply authentication to all routes
@@ -33,12 +41,60 @@ async function makeElevenLabsRequest(endpoint: string, options: RequestInit = {}
   return response;
 }
 
-// Get all available voices
-router.get('/voices', async (req: Request, res: Response) => {
+// Get all available voices (filtered for current user)
+router.get('/voices', async (req: AuthenticatedRequest, res: Response) => {
   try {
+    const userId = req.user?.id;
+    
+    // Fetch all voices from ElevenLabs API
     const response = await makeElevenLabsRequest('/voices');
     const data = await response.json();
-    res.json(data);
+    
+    if (!data.voices || !Array.isArray(data.voices)) {
+      return res.json({ voices: [] });
+    }
+
+    // Get user's voice IDs from database if user is authenticated
+    let userVoiceIds: string[] = [];
+    if (userId) {
+      try {
+        const { data: userVoices, error } = await supabase
+          .from('user_voices')
+          .select('voice_id')
+          .eq('user_id', userId);
+
+        if (!error && userVoices) {
+          userVoiceIds = userVoices.map(v => v.voice_id);
+        }
+      } catch (error) {
+        console.warn('Error fetching user voices:', error);
+      }
+    }
+
+    // Define known public voice IDs (ElevenLabs premade voices)
+    const publicVoiceIds = [
+      '21m00Tcm4TlvDq8ikWAM', // Rachel
+      'AZnzlk1XvdvUeBnXmlld', // Domi
+      'EXAVITQu4vr4xnSDxMaL', // Bella
+      'ErXwobaYiN019PkySvjV', // Antoni
+      'MF3mGyEYCl7XYWbV9V6O', // Elli
+      'TxGEqnHWrfWFTfGW9XjX', // Josh
+    ];
+
+    // Filter voices to only include:
+    // 1. Public/premade voices
+    // 2. User's own cloned voices
+    const filteredVoices = data.voices.filter((voice: any) => {
+      const isPublicVoice = voice.category === 'premade' || 
+                           voice.sharing?.status === 'public' ||
+                           publicVoiceIds.includes(voice.voice_id);
+      
+      const isUserVoice = userId && userVoiceIds.includes(voice.voice_id);
+      
+      return isPublicVoice || isUserVoice;
+    });
+
+    res.json({ voices: filteredVoices });
   } catch (error) {
     console.error('Error fetching voices:', error);
     res.status(500).json({ error: 'Failed to fetch voices' });
@@ -49,7 +105,7 @@ router.get('/voices', async (req: Request, res: Response) => {
 router.get('/voices/:voiceId', 
   [param('voiceId').isString().notEmpty()],
   validateRequest,
-  async (req: Request, res: Response) => {
+  async (req: AuthenticatedRequest, res: Response) => {
     try {
       const { voiceId } = req.params;
       const response = await makeElevenLabsRequest(`/voices/${voiceId}`);
@@ -70,7 +126,7 @@ router.post('/text-to-speech/:voiceId',
     body('voice_settings').optional().isObject(),
   ],
   validateRequest,
-  async (req: Request, res: Response) => {
+  async (req: AuthenticatedRequest, res: Response) => {
     try {
       const { voiceId } = req.params;
       const { text, voice_settings } = req.body;
@@ -91,11 +147,10 @@ router.post('/text-to-speech/:voiceId',
 
       // Get the audio data
       const audioBuffer = await response.arrayBuffer();
-      const audioBase64 = Buffer.from(audioBuffer).toString('base64');
 
       // Save to Supabase storage
       const fileName = `tts_${Date.now()}_${userId}.mp3`;
-      const { data: uploadData, error: uploadError } = await supabase.storage
+      const { error: uploadError } = await supabase.storage
         .from('audio-files')
         .upload(fileName, Buffer.from(audioBuffer), {
           contentType: 'audio/mpeg',
@@ -151,7 +206,7 @@ router.post('/voices/clone',
     body('files').isArray().notEmpty(),
   ],
   validateRequest,
-  async (req: Request, res: Response) => {
+  async (req: AuthenticatedRequest, res: Response) => { // FIX: use AuthenticatedRequest
     try {
       const { name, description, files } = req.body;
       const userId = req.user?.id;
@@ -223,7 +278,7 @@ router.post('/voices/clone',
 router.delete('/voices/:voiceId',
   [param('voiceId').isString().notEmpty()],
   validateRequest,
-  async (req: Request, res: Response) => {
+  async (req: AuthenticatedRequest, res: Response) => { // FIX: use AuthenticatedRequest
     try {
       const { voiceId } = req.params;
       const userId = req.user?.id;
@@ -265,7 +320,7 @@ router.delete('/voices/:voiceId',
 );
 
 // Get user's custom voices
-router.get('/user/voices', async (req: Request, res: Response) => {
+router.get('/user/voices', async (req: AuthenticatedRequest, res: Response) => { // FIX: use AuthenticatedRequest
   try {
     const userId = req.user?.id;
     
@@ -291,7 +346,7 @@ router.get('/user/audio-history',
     query('offset').optional().isInt({ min: 0 }),
   ],
   validateRequest,
-  async (req: Request, res: Response) => {
+  async (req: AuthenticatedRequest, res: Response) => { // FIX: use AuthenticatedRequest
     try {
       const userId = req.user?.id;
       const limit = parseInt(req.query.limit as string) || 20;
@@ -324,7 +379,7 @@ router.post('/speech-to-speech/:voiceId',
     body('voice_settings').optional().isObject(),
   ],
   validateRequest,
-  async (req: Request, res: Response) => {
+  async (req: AuthenticatedRequest, res: Response) => { // FIX: use AuthenticatedRequest
     try {
       const { voiceId } = req.params;
       const { audio, voice_settings } = req.body;
@@ -367,7 +422,7 @@ router.post('/speech-to-speech/:voiceId',
       
       // Save to storage
       const fileName = `sts_${Date.now()}_${userId}.mp3`;
-      const { data: uploadData, error: uploadError } = await supabase.storage
+      const { error: uploadError } = await supabase.storage
         .from('audio-files')
         .upload(fileName, Buffer.from(outputAudioBuffer), {
           contentType: 'audio/mpeg',
