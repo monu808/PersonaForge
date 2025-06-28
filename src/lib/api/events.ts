@@ -14,7 +14,7 @@ export interface LiveEvent {
   duration: number;
   max_participants: number;
   type: string;
-  visibility: 'public' | 'private';
+  visibility: 'public' | 'private' | 'unlisted';
   room_url?: string;
   created_at: string;
   updated_at: string;

@@ -48,6 +48,8 @@ export function PodcastCreator({ onPodcastCreated }: PodcastCreatorProps) {
       };
 
       const result = await podcastManager.createEnhancedPodcast({
+        title: topic,
+        description: `A podcast about ${topic}`,
         topic,
         duration,
         host1VoiceId: host1Voice,

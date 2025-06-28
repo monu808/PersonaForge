@@ -212,7 +212,8 @@ export default function EventHost({ replicas }: EventHostProps) {
         topic,
         duration: formData.duration,
         host1VoiceId: formData.host1Voice,
-        host2VoiceId: formData.host2Voice
+        host2VoiceId: formData.host2Voice,
+        visibility: formData.visibility as 'public' | 'private' | 'unlisted'
       }, options);
 
       if (result.error) {
@@ -239,7 +240,7 @@ export default function EventHost({ replicas }: EventHostProps) {
         start_time: new Date().toISOString(),
         duration: formData.duration,
         type: 'podcast',
-        visibility: 'public', // Podcasts are always public
+        visibility: formData.visibility as 'public' | 'private' | 'unlisted', // Use form visibility
         max_participants: 0, // Podcasts don't have live participants
         room_url: `/neurovia?tab=podcasts`
       });
@@ -616,40 +617,38 @@ export default function EventHost({ replicas }: EventHostProps) {
                 </Select>
               </div>
 
-              {/* Only show Visibility for non-podcast events */}
-              {formData.type !== 'podcast' && (
-                <div className="space-y-2">
-                  <label className="text-sm font-medium">Visibility</label>
-                  <Select 
-                    value={formData.visibility} 
-                    onValueChange={(value) => setFormData(prev => ({ ...prev, visibility: value }))}
-                  >
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="public">
-                        <div className="flex items-center gap-2">
-                          <Globe className="h-4 w-4" />
-                          Public
-                        </div>
-                      </SelectItem>
-                      <SelectItem value="private">
-                        <div className="flex items-center gap-2">
-                          <Lock className="h-4 w-4" />
-                          Private
-                        </div>
-                      </SelectItem>
-                      <SelectItem value="unlisted">
-                        <div className="flex items-center gap-2">
-                          <Eye className="h-4 w-4" />
-                          Unlisted
-                        </div>
-                      </SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-              )}{/* Conditional fields based on event type */}
+              {/* Visibility field for all event types */}
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Visibility</label>
+                <Select 
+                  value={formData.visibility} 
+                  onValueChange={(value) => setFormData(prev => ({ ...prev, visibility: value }))}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="public">
+                      <div className="flex items-center gap-2">
+                        <Globe className="h-4 w-4" />
+                        Public
+                      </div>
+                    </SelectItem>
+                    <SelectItem value="private">
+                      <div className="flex items-center gap-2">
+                        <Lock className="h-4 w-4" />
+                        Private
+                      </div>
+                    </SelectItem>
+                    <SelectItem value="unlisted">
+                      <div className="flex items-center gap-2">
+                        <Eye className="h-4 w-4" />
+                        Unlisted
+                      </div>
+                    </SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>{/* Conditional fields based on event type */}
               {formData.type !== 'podcast' && (
                 <>
                   <div className="space-y-2">

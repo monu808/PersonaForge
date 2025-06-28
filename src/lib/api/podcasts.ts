@@ -12,6 +12,7 @@ export interface Podcast {
   topic?: string;
   host1_voice_name?: string;
   host2_voice_name?: string;
+  visibility?: 'public' | 'private' | 'unlisted';
 }
 
 export interface PodcastRequest {
@@ -26,6 +27,7 @@ export interface PodcastRequest {
   duration?: number;
   host1VoiceId?: string;
   host2VoiceId?: string;
+  visibility?: 'public' | 'private' | 'unlisted';
 }
 
 // Default podcast voices for host selection
@@ -486,6 +488,7 @@ export async function createPodcastRecord(podcastRequest: PodcastRequest): Promi
       host2_voice_name: getVoiceName(host2VoiceId),
       audio_url: '', // Will be updated later
       status: 'pending', // Use 'pending' instead of 'processing' as default
+      visibility: podcastRequest.visibility || 'public',
       user_id: session.user.id
     };
 
@@ -513,6 +516,7 @@ export async function createPodcastRecord(podcastRequest: PodcastRequest): Promi
           host1_voice_name: podcastData.host1_voice_name,
           host2_voice_name: podcastData.host2_voice_name,
           status: 'pending', // Use pending instead of processing
+          visibility: podcastData.visibility,
           user_id: session.user.id
         };
         
