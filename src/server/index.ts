@@ -16,7 +16,7 @@ const port = process.env.PORT || 3001;
 app.use(cors({
   origin: process.env.NODE_ENV === 'production' 
     ? ['https://personaforge.social'] 
-    : ['http://localhost:5173', 'http://localhost:3000', 'http://localhost:8888'],
+    : ['http://localhost:5173', 'http://localhost:3000'],
   credentials: true,
 }));
 

@@ -46,8 +46,7 @@ router.post('/submit', [
       console.error('Error submitting support request:', error);
       res.status(500).json({
         success: false,
-        message: 'Failed to submit support request',
-        error: process.env.NODE_ENV === 'development' ? (error as Error).message : undefined
+        message: 'Failed to submit support request'
       });
     }
   }
@@ -57,11 +56,6 @@ router.post('/submit', [
 async function sendEmailNotification(data: any) {
   const nodemailer = require('nodemailer');
 
-  console.log('Attempting to send email with config:', {
-    user: process.env.SUPPORT_EMAIL_USER ? 'Set' : 'Not set',
-    pass: process.env.SUPPORT_EMAIL_PASS ? 'Set' : 'Not set'
-  });
-
   // Configure your email transporter
   const transporter = nodemailer.createTransporter({
     // Gmail example (you can use any email service)
@@ -70,6 +64,14 @@ async function sendEmailNotification(data: any) {
       user: process.env.SUPPORT_EMAIL_USER, // your-email@gmail.com
       pass: process.env.SUPPORT_EMAIL_PASS  // your-app-password
     }
+    // Or use SMTP settings for other providers
+    // host: 'smtp.yourdomain.com',
+    // port: 587,
+    // secure: false,
+    // auth: {
+    //   user: process.env.SMTP_USER,
+    //   pass: process.env.SMTP_PASS
+    // }
   });
 
   const mailOptions = {
@@ -94,7 +96,6 @@ async function sendEmailNotification(data: any) {
   };
 
   await transporter.sendMail(mailOptions);
-  console.log('Email sent successfully to:', 'monu80850raj@gmail.com');
 }
 
 export default router;

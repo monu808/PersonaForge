@@ -486,7 +486,6 @@ export async function createPodcastRecord(podcastRequest: PodcastRequest): Promi
       host2_voice_name: getVoiceName(host2VoiceId),
       audio_url: '', // Will be updated later
       status: 'pending', // Use 'pending' instead of 'processing' as default
-      visibility: 'public', // Make all podcasts public by default
       user_id: session.user.id
     };
 
