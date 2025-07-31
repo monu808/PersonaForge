@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Badge } from './ui/badge';
+// import { Badge } from './ui/badge';
 import { Loader2 } from 'lucide-react';
 
 export function getDeploymentStatus() {
@@ -41,31 +41,31 @@ export function DeploymentStatusBadge() {
 
   if (loading) {
     return (
-      <Badge variant="outline" className="gap-1">
+      <div className="gap-1">
         <Loader2 className="h-3 w-3 animate-spin" />
         <span>Checking deployment...</span>
-      </Badge>
+      </div>
     );
   }
 
   switch (status) {
     case 'success':
       return (
-        <Badge className="bg-green-100 text-green-800 border-green-200">
+        <div className="bg-green-100 text-green-800 border-green-200">
           Deployed Successfully
-        </Badge>
+        </div>
       );
     case 'error':
       return (
-        <Badge variant="destructive">
+        <div className="destructive">
           Deployment Failed
-        </Badge>
+        </div>
       );
     case 'pending':
       return (
-        <Badge className="bg-yellow-100 text-yellow-800 border-yellow-200">
+        <div className="bg-yellow-100 text-yellow-800 border-yellow-200">
           Deployment in Progress
-        </Badge>
+        </div>
       );
     default:
       return (
@@ -91,7 +91,7 @@ export function DeploymentStatusBadge() {
           title="Built with Bolt.new"
         >
           <img 
-            src="/badge/black_circle_360x360.png" 
+            // Badge image removed
             alt="Built with Bolt.new" 
             className="w-full h-full object-contain"
             onError={(e) => {

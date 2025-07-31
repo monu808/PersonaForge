@@ -16,7 +16,7 @@ export const BoltBadge: React.FC<BoltBadgeProps> = ({
       case 'black':
         return '/badge/black_circle_360x360.png';
       case 'text':
-        return '/badge/logotext_poweredby_360w.png';
+        // Badge image removed
       default:
         return '/badge/black_circle_360x360.png';
     }

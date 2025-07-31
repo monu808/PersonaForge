@@ -1,4 +1,4 @@
-import { DeploymentStatusBadge } from './components/DeploymentStatusBadge';
+// ...existing code...
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { Layout } from './components/layout/layout';
 import HomePage from './pages/home';
@@ -56,7 +56,7 @@ function App() {
   return (
     <>
       <div className="fixed inset-0 pointer-events-none z-50">
-        <DeploymentStatusBadge />
+        {/* Badge removed */}
       </div>
     <AuthProvider>
       <SubscriptionProvider>
